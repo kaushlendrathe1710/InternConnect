@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, TrendingUp, Briefcase, GraduationCap } from "lucide-react";
+import { Search, TrendingUp, Briefcase, GraduationCap, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
 import { MOCK_INTERNSHIPS, Internship } from "@/lib/mockData";
 import { InternshipCard } from "@/components/ui/internship-card";

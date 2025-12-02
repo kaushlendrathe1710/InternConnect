@@ -9,6 +9,7 @@ import SearchPage from "@/pages/search";
 import StudentDashboard from "@/pages/student/dashboard";
 import EmployerDashboard from "@/pages/employer/dashboard";
 import PostInternship from "@/pages/employer/post-internship";
+import AdminDashboard from "@/pages/admin/dashboard";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/employer/dashboard" component={EmployerDashboard} />
       <Route path="/employer/applications" component={EmployerDashboard} />
       <Route path="/employer/post" component={PostInternship} />
+      <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route component={NotFound} />
     </Switch>
   );
