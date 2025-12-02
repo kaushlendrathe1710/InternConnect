@@ -1,9 +1,13 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { generateOTP, sendOTPEmail } from "./email";
-import { insertOtpSchema, insertUserSchema, insertInternshipSchema, insertApplicationSchema } from "@shared/schema";
+import { insertOtpSchema, insertUserSchema, insertInternshipSchema, insertApplicationSchema, insertMessageSchema, insertConversationSchema } from "@shared/schema";
 import { z } from "zod";
+
+// Store active WebSocket connections by user ID
+const userConnections = new Map<number, WebSocket>();
 
 export async function registerRoutes(
   httpServer: Server,
@@ -291,6 +295,126 @@ export async function registerRoutes(
     }
   });
 
+  // ============= MESSAGING ROUTES =============
+
+  // Get or create conversation
+  app.post("/api/conversations", async (req: Request, res: Response) => {
+    try {
+      const { employerId, studentId, internshipId } = req.body;
+
+      if (!employerId || !studentId) {
+        return res.status(400).json({ error: "Employer ID and Student ID are required" });
+      }
+
+      // Check if conversation already exists
+      let conversation = await storage.getConversationByParticipants(employerId, studentId);
+
+      if (!conversation) {
+        // Create new conversation
+        conversation = await storage.createConversation({
+          employerId,
+          studentId,
+          internshipId: internshipId || null,
+        });
+      }
+
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      res.status(500).json({ error: "Failed to create conversation" });
+    }
+  });
+
+  // Get conversations for a user
+  app.get("/api/conversations/user/:userId", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const role = req.query.role as string;
+
+      if (!role || !["employer", "student"].includes(role)) {
+        return res.status(400).json({ error: "Valid role is required" });
+      }
+
+      const conversations = await storage.getConversationsByUser(userId, role);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ error: "Failed to fetch conversations" });
+    }
+  });
+
+  // Get messages for a conversation
+  app.get("/api/conversations/:conversationId/messages", async (req: Request, res: Response) => {
+    try {
+      const conversationId = parseInt(req.params.conversationId);
+      const messages = await storage.getMessagesByConversation(conversationId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  // Send a message
+  app.post("/api/conversations/:conversationId/messages", async (req: Request, res: Response) => {
+    try {
+      const conversationId = parseInt(req.params.conversationId);
+      const { senderId, content } = req.body;
+
+      if (!senderId || !content) {
+        return res.status(400).json({ error: "Sender ID and content are required" });
+      }
+
+      const message = await storage.createMessage({
+        conversationId,
+        senderId,
+        content,
+        isRead: false,
+      });
+
+      // Get conversation to find recipient
+      const conversation = await storage.getConversation(conversationId);
+      if (conversation) {
+        const recipientId = conversation.employerId === senderId 
+          ? conversation.studentId 
+          : conversation.employerId;
+        
+        // Send real-time notification via WebSocket
+        const recipientSocket = userConnections.get(recipientId);
+        if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
+          recipientSocket.send(JSON.stringify({
+            type: "new_message",
+            conversationId,
+            message,
+          }));
+        }
+      }
+
+      res.json(message);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      res.status(500).json({ error: "Failed to send message" });
+    }
+  });
+
+  // Mark messages as read
+  app.post("/api/conversations/:conversationId/read", async (req: Request, res: Response) => {
+    try {
+      const conversationId = parseInt(req.params.conversationId);
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      await storage.markMessagesAsRead(conversationId, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+      res.status(500).json({ error: "Failed to mark messages as read" });
+    }
+  });
+
   // ============= ADMIN ROUTES =============
 
   // Get platform stats (admin only)
@@ -307,6 +431,47 @@ export async function registerRoutes(
       console.error("Error fetching admin stats:", error);
       res.status(500).json({ error: "Failed to fetch stats" });
     }
+  });
+
+  // ============= WEBSOCKET SETUP =============
+  
+  const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
+
+  wss.on("connection", (ws, req) => {
+    console.log("New WebSocket connection");
+
+    ws.on("message", (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        
+        if (message.type === "register") {
+          // Register this connection with user ID
+          const userId = message.userId;
+          if (userId) {
+            userConnections.set(userId, ws);
+            console.log(`User ${userId} connected via WebSocket`);
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
+    });
+
+    ws.on("close", () => {
+      // Remove connection from map
+      const entries = Array.from(userConnections.entries());
+      for (const [userId, socket] of entries) {
+        if (socket === ws) {
+          userConnections.delete(userId);
+          console.log(`User ${userId} disconnected`);
+          break;
+        }
+      }
+    });
+
+    ws.on("error", (error) => {
+      console.error("WebSocket error:", error);
+    });
   });
 
   return httpServer;

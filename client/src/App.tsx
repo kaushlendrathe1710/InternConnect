@@ -14,6 +14,7 @@ import StudentResume from "@/pages/student/resume";
 import StudentBookmarks from "@/pages/student/bookmarks";
 import StudentSettings from "@/pages/student/settings";
 import StudentInternships from "@/pages/student/internships";
+import StudentMessages from "@/pages/student/messages";
 import EmployerDashboard from "@/pages/employer/dashboard";
 import PostInternship from "@/pages/employer/post-internship";
 import EmployerApplications from "@/pages/employer/applications";
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/student/bookmarks" component={StudentBookmarks} />
       <Route path="/student/settings" component={StudentSettings} />
       <Route path="/student/internships" component={StudentInternships} />
+      <Route path="/student/messages" component={StudentMessages} />
       
       {/* Employer Routes */}
       <Route path="/employer/dashboard" component={EmployerDashboard} />

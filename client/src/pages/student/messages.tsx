@@ -17,10 +17,10 @@ import {
   MoreHorizontal,
   Phone,
   Video,
-  Clock,
   CheckCheck,
   MessageSquare,
-  Loader2
+  Loader2,
+  Building2
 } from "lucide-react";
 
 interface Message {
@@ -48,7 +48,7 @@ interface ConversationWithDetails {
   unreadCount: number;
 }
 
-export default function EmployerMessages() {
+export default function StudentMessages() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
@@ -83,7 +83,7 @@ export default function EmployerMessages() {
     const fetchConversations = async () => {
       if (!user?.id) return;
       try {
-        const data = await api.getConversations(user.id, "employer");
+        const data = await api.getConversations(user.id, "student");
         setConversations(data);
         if (data.length > 0 && !selectedConversation) {
           setSelectedConversation(data[0].id);
@@ -174,7 +174,7 @@ export default function EmployerMessages() {
 
   if (loading) {
     return (
-      <DashboardLayout role="employer">
+      <DashboardLayout role="student">
         <div className="flex items-center justify-center h-[600px]">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
@@ -183,11 +183,11 @@ export default function EmployerMessages() {
   }
 
   return (
-    <DashboardLayout role="employer">
+    <DashboardLayout role="student">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900" data-testid="text-page-title">Messages</h1>
-          <p className="text-muted-foreground">Communicate with applicants in real-time</p>
+          <p className="text-muted-foreground">Chat with employers about your applications</p>
         </div>
 
         <Card className="overflow-hidden">
@@ -198,7 +198,7 @@ export default function EmployerMessages() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input 
-                    placeholder="Search conversations..." 
+                    placeholder="Search employers..." 
                     className="pl-9"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -210,8 +210,9 @@ export default function EmployerMessages() {
               <ScrollArea className="flex-1">
                 {filteredConversations.length === 0 ? (
                   <div className="p-4 text-center text-muted-foreground">
-                    <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <Building2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">No conversations yet</p>
+                    <p className="text-xs mt-1">Apply to internships to start chatting with employers</p>
                   </div>
                 ) : (
                   filteredConversations.map((conv) => (
@@ -225,13 +226,13 @@ export default function EmployerMessages() {
                     >
                       <div className="flex items-start gap-3">
                         <Avatar className="h-10 w-10">
-                          <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                          <AvatarFallback className="bg-green-100 text-green-700 text-sm font-semibold">
                             {conv.otherUser?.name?.split(' ').map(n => n[0]).join('') || '?'}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <h4 className="font-medium text-sm truncate">{conv.otherUser?.name || 'Unknown'}</h4>
+                            <h4 className="font-medium text-sm truncate">{conv.otherUser?.name || 'Employer'}</h4>
                             <span className="text-xs text-muted-foreground">
                               {conv.lastMessage ? formatTime(conv.lastMessage.createdAt) : ''}
                             </span>
@@ -260,12 +261,12 @@ export default function EmployerMessages() {
                 <div className="p-4 border-b flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                      <AvatarFallback className="bg-green-100 text-green-700 font-semibold">
                         {selectedChat.otherUser?.name?.split(' ').map(n => n[0]).join('') || '?'}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h3 className="font-semibold">{selectedChat.otherUser?.name || 'Unknown'}</h3>
+                      <h3 className="font-semibold">{selectedChat.otherUser?.name || 'Employer'}</h3>
                       <p className="text-xs text-muted-foreground">{selectedChat.otherUser?.email}</p>
                     </div>
                   </div>
@@ -348,7 +349,7 @@ export default function EmployerMessages() {
               <div className="flex-1 flex items-center justify-center text-muted-foreground">
                 <div className="text-center">
                   <MessageSquare className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                  <p>Select a conversation to start messaging</p>
+                  <p>Select a conversation to view messages</p>
                 </div>
               </div>
             )}

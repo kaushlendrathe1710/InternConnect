@@ -42,6 +42,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
     { href: "/student/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/student/internships", label: "Find Internships", icon: Search },
     { href: "/student/applications", label: "My Applications", icon: Briefcase },
+    { href: "/student/messages", label: "Messages", icon: MessageSquare },
     { href: "/student/resume", label: "Edit Resume", icon: FileText },
     { href: "/student/bookmarks", label: "Bookmarks", icon: Bookmark },
   ];
