@@ -62,11 +62,17 @@ export interface IStorage {
   updateUserStatus(id: number, isSuspended: boolean): Promise<User | undefined>;
   deleteUser(id: number): Promise<boolean>;
   createAdmin(user: InsertUser): Promise<User>;
-  getAdminStats(): Promise<{ students: number; employers: number; admins: number; internships: number; applications: number }>;
+  getAdminStats(): Promise<{ students: number; employers: number; admins: number; internships: number; applications: number; conversations: number; messages: number }>;
   updateInternshipStatus(id: number, isActive: boolean): Promise<Internship | undefined>;
   getAllInternships(): Promise<Internship[]>;
   getAllApplications(): Promise<Application[]>;
   ensureSuperAdmin(): Promise<User>;
+  
+  // Admin messages moderation methods
+  getAllConversations(): Promise<(Conversation & { employer: User | null; student: User | null; messageCount: number; lastMessageAt: Date | null })[]>;
+  getConversationWithMessages(conversationId: number): Promise<{ conversation: Conversation; messages: (Message & { sender: User | null })[]; employer: User | null; student: User | null } | null>;
+  deleteMessage(messageId: number): Promise<boolean>;
+  deleteConversation(conversationId: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -375,12 +381,14 @@ export class DatabaseStorage implements IStorage {
     return admin;
   }
 
-  async getAdminStats(): Promise<{ students: number; employers: number; admins: number; internships: number; applications: number }> {
+  async getAdminStats(): Promise<{ students: number; employers: number; admins: number; internships: number; applications: number; conversations: number; messages: number }> {
     const [studentCount] = await db.select({ count: count() }).from(users).where(eq(users.role, "student"));
     const [employerCount] = await db.select({ count: count() }).from(users).where(eq(users.role, "employer"));
     const [adminCount] = await db.select({ count: count() }).from(users).where(eq(users.role, "admin"));
     const [internshipCount] = await db.select({ count: count() }).from(internships);
     const [applicationCount] = await db.select({ count: count() }).from(applications);
+    const [conversationCount] = await db.select({ count: count() }).from(conversations);
+    const [messageCount] = await db.select({ count: count() }).from(messages);
 
     return {
       students: studentCount?.count || 0,
@@ -388,6 +396,8 @@ export class DatabaseStorage implements IStorage {
       admins: adminCount?.count || 0,
       internships: internshipCount?.count || 0,
       applications: applicationCount?.count || 0,
+      conversations: conversationCount?.count || 0,
+      messages: messageCount?.count || 0,
     };
   }
 
@@ -443,6 +453,75 @@ export class DatabaseStorage implements IStorage {
     }
 
     return superAdmin;
+  }
+
+  // Admin messages moderation methods
+  async getAllConversations(): Promise<(Conversation & { employer: User | null; student: User | null; messageCount: number; lastMessageAt: Date | null })[]> {
+    const allConversations = await db
+      .select()
+      .from(conversations)
+      .orderBy(desc(conversations.updatedAt));
+
+    const result = await Promise.all(
+      allConversations.map(async (conv) => {
+        const [employer] = await db.select().from(users).where(eq(users.id, conv.employerId));
+        const [student] = await db.select().from(users).where(eq(users.id, conv.studentId));
+        const [msgCount] = await db.select({ count: count() }).from(messages).where(eq(messages.conversationId, conv.id));
+        const [lastMsg] = await db.select().from(messages).where(eq(messages.conversationId, conv.id)).orderBy(desc(messages.createdAt)).limit(1);
+
+        return {
+          ...conv,
+          employer: employer || null,
+          student: student || null,
+          messageCount: msgCount?.count || 0,
+          lastMessageAt: lastMsg?.createdAt || null,
+        };
+      })
+    );
+
+    return result;
+  }
+
+  async getConversationWithMessages(conversationId: number): Promise<{ conversation: Conversation; messages: (Message & { sender: User | null })[]; employer: User | null; student: User | null } | null> {
+    const [conversation] = await db.select().from(conversations).where(eq(conversations.id, conversationId));
+    
+    if (!conversation) return null;
+
+    const [employer] = await db.select().from(users).where(eq(users.id, conversation.employerId));
+    const [student] = await db.select().from(users).where(eq(users.id, conversation.studentId));
+    
+    const allMessages = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, conversationId))
+      .orderBy(messages.createdAt);
+
+    const messagesWithSenders = await Promise.all(
+      allMessages.map(async (msg) => {
+        const [sender] = await db.select().from(users).where(eq(users.id, msg.senderId));
+        return { ...msg, sender: sender || null };
+      })
+    );
+
+    return {
+      conversation,
+      messages: messagesWithSenders,
+      employer: employer || null,
+      student: student || null,
+    };
+  }
+
+  async deleteMessage(messageId: number): Promise<boolean> {
+    await db.delete(messages).where(eq(messages.id, messageId));
+    return true;
+  }
+
+  async deleteConversation(conversationId: number): Promise<boolean> {
+    // First delete all messages in the conversation
+    await db.delete(messages).where(eq(messages.conversationId, conversationId));
+    // Then delete the conversation
+    await db.delete(conversations).where(eq(conversations.id, conversationId));
+    return true;
   }
 }
 
