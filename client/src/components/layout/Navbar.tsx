@@ -1,10 +1,12 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 export function Navbar() {
   const [location] = useLocation();
+  const { user, logout } = useAuth();
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -48,7 +50,6 @@ export function Navbar() {
 
         <div className="flex flex-1 items-center justify-between md:justify-end">
           <div className="w-full flex-1 md:w-auto md:flex-none">
-            {/* Mobile logo shows here if needed, usually hidden on desktop */}
             <Link href="/">
               <a className="mr-6 flex items-center space-x-2 md:hidden">
                 <span className="font-bold text-lg text-primary">InternConnect</span>
@@ -57,17 +58,37 @@ export function Navbar() {
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex font-medium">
-              Login
-            </Button>
-            <Button size="sm" className="font-semibold px-6">
-              Register
-            </Button>
-            <Link href="/employer/dashboard">
-             <Button variant="outline" size="sm" className="hidden lg:inline-flex ml-2">
-               Hire Talent
-             </Button>
-            </Link>
+            {user ? (
+              <div className="flex items-center gap-4">
+                 <Link href={user.role === 'employer' ? '/employer/dashboard' : (user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard')}>
+                    <a className="text-sm font-medium hover:text-primary">Dashboard</a>
+                 </Link>
+                 <Button variant="ghost" size="sm" onClick={logout} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                    <LogOut className="w-4 h-4 mr-2" /> Logout
+                 </Button>
+              </div>
+            ) : (
+              <>
+                <Link href="/auth">
+                  <Button variant="ghost" size="sm" className="hidden sm:inline-flex font-medium">
+                    Login
+                  </Button>
+                </Link>
+                <Link href="/auth">
+                  <Button size="sm" className="font-semibold px-6">
+                    Register
+                  </Button>
+                </Link>
+              </>
+            )}
+            
+            {!user && (
+               <Link href="/employer/dashboard">
+                <Button variant="outline" size="sm" className="hidden lg:inline-flex ml-2">
+                  Hire Talent
+                </Button>
+               </Link>
+            )}
           </div>
         </div>
       </div>
