@@ -122,7 +122,7 @@ export async function registerRoutes(
   // Verify OTP and login/register
   app.post("/api/auth/verify-otp", async (req: Request, res: Response) => {
     try {
-      const { email, code } = req.body;
+      const { email, code, isAdminLogin } = req.body;
 
       if (!email || !code) {
         return res.status(400).json({ error: "Email and code are required" });
@@ -147,6 +147,13 @@ export async function registerRoutes(
           return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
         }
         
+        // If this is an admin login attempt, verify user is an admin
+        if (isAdminLogin && existingUser.role !== "admin") {
+          return res.status(403).json({ 
+            error: "Access denied. This login is only for administrators. Please use the regular login." 
+          });
+        }
+        
         // Set session
         req.session.userId = existingUser.id;
         req.session.email = existingUser.email;
@@ -167,6 +174,13 @@ export async function registerRoutes(
           },
         });
       } else {
+        // For admin login, don't allow new registrations
+        if (isAdminLogin) {
+          return res.status(403).json({ 
+            error: "No admin account found with this email. Admin accounts can only be created by the super admin." 
+          });
+        }
+        
         // New user - needs to complete registration
         res.json({
           success: true,

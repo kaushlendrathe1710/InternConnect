@@ -26,6 +26,7 @@ import AdminInternships from "@/pages/admin/internships";
 import ManageAdmins from "@/pages/admin/manage-admins";
 import AuthPage from "@/pages/auth/auth-page";
 import RoleSelection from "@/pages/auth/role-selection";
+import AdminLogin from "@/pages/auth/admin-login";
 
 function Router() {
   return (
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/search" component={SearchPage} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/auth/onboarding" component={RoleSelection} />
+      <Route path="/login" component={AdminLogin} />
       
       {/* Student Routes */}
       <Route path="/student/dashboard" component={StudentDashboard} />
