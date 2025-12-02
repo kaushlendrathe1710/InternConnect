@@ -1,50 +1,15 @@
 import * as nodemailer from "nodemailer";
 
-let transporter: nodemailer.Transporter | null = null;
-let testAccount: { user: string; pass: string; web: string } | null = null;
-
-// Initialize transporter - uses Ethereal test account for development
-async function getTransporter(): Promise<nodemailer.Transporter> {
-  if (transporter) return transporter;
-
-  // Check if production SMTP credentials are provided
-  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.gmail.com",
-      port: parseInt(process.env.SMTP_PORT || "587"),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-    console.log("📧 Using production SMTP configuration");
-  } else {
-    // Create Ethereal test account for development
-    const account = await nodemailer.createTestAccount();
-    testAccount = {
-      user: account.user,
-      pass: account.pass,
-      web: "https://ethereal.email",
-    };
-    
-    transporter = nodemailer.createTransport({
-      host: "smtp.ethereal.email",
-      port: 587,
-      secure: false,
-      auth: {
-        user: account.user,
-        pass: account.pass,
-      },
-    });
-    
-    console.log("📧 Using Ethereal Email for testing");
-    console.log(`📧 View sent emails at: ${testAccount.web}`);
-    console.log(`📧 Login: ${account.user} / ${account.pass}`);
-  }
-
-  return transporter;
-}
+// Create transporter using provided SMTP credentials
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || "587"),
+  secure: process.env.SMTP_PORT === "465", // true for 465, false for other ports
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 // Generate a 6-digit OTP
 export function generateOTP(): string {
@@ -52,11 +17,9 @@ export function generateOTP(): string {
 }
 
 // Send OTP email
-export async function sendOTPEmail(email: string, otp: string): Promise<{ previewUrl?: string }> {
-  const transport = await getTransporter();
-
+export async function sendOTPEmail(email: string, otp: string): Promise<void> {
   const mailOptions = {
-    from: '"InternConnect" <noreply@internconnect.com>',
+    from: `"InternConnect" <${process.env.SMTP_USER}>`,
     to: email,
     subject: "Your InternConnect Login Code",
     text: `Your OTP code is: ${otp}. This code will expire in 10 minutes.`,
@@ -82,17 +45,8 @@ export async function sendOTPEmail(email: string, otp: string): Promise<{ previe
   };
 
   try {
-    const info = await transport.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions);
     console.log(`✅ OTP email sent to ${email}`);
-    
-    // Get preview URL for Ethereal emails
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    if (previewUrl) {
-      console.log(`📧 Preview email at: ${previewUrl}`);
-      return { previewUrl: previewUrl as string };
-    }
-    
-    return {};
   } catch (error) {
     console.error("❌ Error sending email:", error);
     throw new Error("Failed to send OTP email");
