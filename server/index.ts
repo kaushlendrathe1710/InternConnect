@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
+import { Pool } from "@neondatabase/serverless";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -9,7 +10,11 @@ import crypto from "crypto";
 const app = express();
 const httpServer = createServer(app);
 
-const MemoryStoreSession = MemoryStore(session);
+const PgSession = connectPgSimple(session);
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
 declare module "http" {
   interface IncomingMessage {
@@ -41,8 +46,10 @@ app.use(
     secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex"),
     resave: false,
     saveUninitialized: false,
-    store: new MemoryStoreSession({
-      checkPeriod: 86400000,
+    store: new PgSession({
+      pool: pool as any,
+      tableName: "session",
+      createTableIfMissing: true,
     }),
     cookie: {
       secure: process.env.NODE_ENV === "production",
