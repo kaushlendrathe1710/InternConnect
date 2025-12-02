@@ -79,6 +79,7 @@ export async function registerRoutes(
             id: existingUser.id,
             email: existingUser.email,
             name: existingUser.name,
+            phone: existingUser.phone,
             role: existingUser.role,
           },
         });
@@ -99,10 +100,14 @@ export async function registerRoutes(
   // Complete registration (for new users after OTP verification)
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
-      const { email, role, name } = req.body;
+      const { email, role, name, phone } = req.body;
 
       if (!email || !role || !["student", "employer", "admin"].includes(role)) {
         return res.status(400).json({ error: "Valid email and role are required" });
+      }
+
+      if (!name || !phone) {
+        return res.status(400).json({ error: "Name and phone are required" });
       }
 
       // Check if user already exists
@@ -115,7 +120,8 @@ export async function registerRoutes(
       const newUser = await storage.createUser({
         email,
         role,
-        name: name || email.split("@")[0],
+        name,
+        phone,
         isVerified: true,
       });
 
@@ -125,6 +131,7 @@ export async function registerRoutes(
           id: newUser.id,
           email: newUser.email,
           name: newUser.name,
+          phone: newUser.phone,
           role: newUser.role,
         },
       });

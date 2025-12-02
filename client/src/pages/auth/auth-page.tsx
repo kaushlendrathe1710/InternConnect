@@ -77,8 +77,14 @@ export default function AuthPage() {
         localStorage.setItem("pending_email", email);
         setLocation("/auth/onboarding");
       } else {
-        // Returning user -> Login
-        login(data.user.email, data.user.role);
+        // Returning user -> Login directly
+        login({
+          id: data.user.id,
+          email: data.user.email,
+          role: data.user.role,
+          name: data.user.name,
+          phone: data.user.phone,
+        });
         toast({ 
           title: `Welcome back, ${data.user.name || data.user.email}!` 
         });

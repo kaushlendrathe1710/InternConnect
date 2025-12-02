@@ -4,54 +4,70 @@ import { useLocation } from "wouter";
 type UserRole = "student" | "employer" | "admin" | null;
 
 interface User {
+  id: number;
   email: string;
   role: UserRole;
   name?: string;
+  phone?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, role: UserRole) => void;
+  login: (user: User) => void;
   logout: () => void;
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const STORAGE_KEY = "internconnect_user";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [, setLocation] = useLocation();
 
+  // Load user from localStorage on mount
   useEffect(() => {
-    // Check local storage for persisting mock session
-    const storedUser = localStorage.getItem("mock_user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    try {
+      const storedUser = localStorage.getItem(STORAGE_KEY);
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      }
+    } catch (error) {
+      console.error("Error loading user from storage:", error);
+      localStorage.removeItem(STORAGE_KEY);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
-  const login = (email: string, role: UserRole) => {
-    const newUser = { email, role, name: email.split("@")[0] };
-    setUser(newUser);
-    localStorage.setItem("mock_user", JSON.stringify(newUser));
+  const login = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
     
     // Redirect based on role
-    if (role === "student") setLocation("/student/dashboard");
-    else if (role === "employer") setLocation("/employer/dashboard");
-    else if (role === "admin") setLocation("/admin/dashboard");
+    if (userData.role === "student") setLocation("/student/dashboard");
+    else if (userData.role === "employer") setLocation("/employer/dashboard");
+    else if (userData.role === "admin") setLocation("/admin/dashboard");
     else setLocation("/");
+  };
+
+  const updateUser = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("mock_user");
+    localStorage.removeItem(STORAGE_KEY);
     setLocation("/");
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
