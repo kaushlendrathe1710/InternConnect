@@ -22,15 +22,35 @@ export default function AuthPage() {
     if (!email) return;
     
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const response = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send OTP");
+      }
+
       setStep("otp");
       toast({
         title: "OTP Sent!",
-        description: "Please check your email for the verification code.",
+        description: data.otp 
+          ? `Check console or use OTP: ${data.otp}` 
+          : "Please check your email for the verification code.",
       });
-    }, 1500);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -38,32 +58,39 @@ export default function AuthPage() {
     if (!otp) return;
 
     setIsLoading(true);
-    // Simulate API verification
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      // Mock Logic for Returning vs New Users
-      // admin@demo.com -> Admin
-      // student@demo.com -> Returning Student
-      // employer@demo.com -> Returning Employer
-      // Others -> New User (Go to Role Selection)
+    try {
+      const response = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code: otp }),
+      });
 
-      if (email === "admin@demo.com") {
-        login(email, "admin");
-        toast({ title: "Welcome Admin" });
-      } else if (email === "student@demo.com") {
-        login(email, "student");
-        toast({ title: "Welcome back, Student!" });
-      } else if (email === "employer@demo.com") {
-        login(email, "employer");
-        toast({ title: "Welcome back, Partner!" });
-      } else {
-        // New User -> Redirect to Role Selection
-        // We pass the email in state or url, for now just redirect
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to verify OTP");
+      }
+
+      if (data.isNewUser) {
+        // New user -> Redirect to Role Selection
         localStorage.setItem("pending_email", email);
         setLocation("/auth/onboarding");
+      } else {
+        // Returning user -> Login
+        login(data.user.email, data.user.role);
+        toast({ 
+          title: `Welcome back, ${data.user.name || data.user.email}!` 
+        });
       }
-    }, 1500);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -108,10 +135,7 @@ export default function AuthPage() {
                 Send OTP
               </Button>
               <div className="text-xs text-center text-muted-foreground mt-4">
-                <p>Try these demo emails:</p>
-                <p>student@demo.com (Returning)</p>
-                <p>employer@demo.com (Returning)</p>
-                <p>any@other.com (New User)</p>
+                <p>Any email works. Check console for OTP in development mode.</p>
               </div>
             </form>
           ) : (

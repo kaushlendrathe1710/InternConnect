@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, Building2, CheckCircle } from "lucide-react";
+import { GraduationCap, Building2, CheckCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 
 export default function RoleSelection() {
   const [role, setRole] = useState<"student" | "employer" | null>(null);
   const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -22,18 +23,44 @@ export default function RoleSelection() {
     }
   }, [setLocation]);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!role || !email) return;
     
-    // Mock Registration
-    login(email, role);
-    
-    toast({
-      title: "Registration Successful!",
-      description: `Welcome to InternConnect, ${role === 'student' ? 'Student' : 'Partner'}!`,
-    });
-    
-    localStorage.removeItem("pending_email");
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          email, 
+          role,
+          name: email.split("@")[0]
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to register");
+      }
+
+      login(data.user.email, data.user.role);
+      
+      toast({
+        title: "Registration Successful!",
+        description: `Welcome to InternConnect, ${role === 'student' ? 'Student' : 'Partner'}!`,
+      });
+      
+      localStorage.removeItem("pending_email");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -84,10 +111,17 @@ export default function RoleSelection() {
           <Button 
             size="lg" 
             className="w-full max-w-xs text-lg h-12"
-            disabled={!role}
+            disabled={!role || isLoading}
             onClick={handleContinue}
           >
-            Continue as {role ? (role.charAt(0).toUpperCase() + role.slice(1)) : "..."}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              `Continue as ${role ? (role.charAt(0).toUpperCase() + role.slice(1)) : "..."}`
+            )}
           </Button>
         </div>
       </div>
