@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Loader2, Mail, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail, ArrowRight, CheckCircle2, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 
@@ -13,6 +13,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | null>(null);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { login } = useAuth();

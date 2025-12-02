@@ -36,13 +36,13 @@ export async function registerRoutes(
       });
 
       // Send email
-      await sendOTPEmail(email, otp);
+      const emailResult = await sendOTPEmail(email, otp);
 
       res.json({ 
         success: true, 
         message: "OTP sent to your email",
-        // In development, return OTP for testing
-        ...(process.env.NODE_ENV === "development" && { otp })
+        // Return preview URL for Ethereal test emails
+        ...(emailResult.previewUrl && { previewUrl: emailResult.previewUrl })
       });
     } catch (error) {
       console.error("Error sending OTP:", error);
