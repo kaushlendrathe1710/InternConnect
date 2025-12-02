@@ -107,14 +107,27 @@ export default function AdminMessages() {
     setLoadingDetail(true);
     try {
       const response = await authFetch(`/api/admin/conversations/${conversationId}`);
-      if (!response.ok) throw new Error("Failed to fetch conversation");
+      if (!response.ok) {
+        const data = await response.json();
+        if (response.status === 404) {
+          setSelectedConversation(null);
+          toast({
+            title: "Not Found",
+            description: "This conversation no longer exists",
+            variant: "destructive",
+          });
+          fetchConversations();
+          return;
+        }
+        throw new Error(data.error || "Failed to fetch conversation");
+      }
       const data = await response.json();
       setSelectedConversation(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching conversation:", error);
       toast({
         title: "Error",
-        description: "Failed to load conversation details",
+        description: error.message || "Failed to load conversation details",
         variant: "destructive",
       });
     } finally {
@@ -123,7 +136,7 @@ export default function AdminMessages() {
   };
 
   const handleDeleteMessage = async () => {
-    if (!itemToDelete || deleteType !== "message") return;
+    if (!itemToDelete || deleteType !== "message" || !selectedConversation) return;
     
     setActionLoading(true);
     try {
@@ -131,14 +144,19 @@ export default function AdminMessages() {
         method: "DELETE",
       });
       
-      if (!response.ok) throw new Error("Failed to delete message");
-      
-      if (selectedConversation) {
-        setSelectedConversation({
-          ...selectedConversation,
-          messages: selectedConversation.messages.filter(m => m.id !== itemToDelete.id)
-        });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete message");
       }
+      
+      // Update local state
+      setSelectedConversation({
+        ...selectedConversation,
+        messages: selectedConversation.messages.filter(m => m.id !== itemToDelete.id)
+      });
+      
+      // Refresh conversations list to update message counts
+      fetchConversations();
       
       setDeleteDialogOpen(false);
       setItemToDelete(null);
@@ -147,10 +165,10 @@ export default function AdminMessages() {
         title: "Message Deleted",
         description: "The message has been removed.",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to delete message",
+        description: error.message || "Failed to delete message",
         variant: "destructive",
       });
     } finally {
@@ -167,7 +185,10 @@ export default function AdminMessages() {
         method: "DELETE",
       });
       
-      if (!response.ok) throw new Error("Failed to delete conversation");
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete conversation");
+      }
       
       setConversations(prev => prev.filter(c => c.id !== itemToDelete.id));
       setSelectedConversation(null);
@@ -178,10 +199,10 @@ export default function AdminMessages() {
         title: "Conversation Deleted",
         description: "The conversation and all its messages have been removed.",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to delete conversation",
+        description: error.message || "Failed to delete conversation",
         variant: "destructive",
       });
     } finally {

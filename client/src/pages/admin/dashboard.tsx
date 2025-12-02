@@ -16,7 +16,8 @@ import {
   UserPlus,
   Settings,
   BarChart3,
-  Loader2
+  Loader2,
+  MessageSquare
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -26,6 +27,8 @@ interface AdminStats {
   admins: number;
   internships: number;
   applications: number;
+  conversations: number;
+  messages: number;
 }
 
 export default function AdminDashboard() {
@@ -87,6 +90,14 @@ export default function AdminDashboard() {
       color: "text-orange-600", 
       bg: "bg-orange-50",
       link: "/admin/applications"
+    },
+    { 
+      label: "Conversations", 
+      value: stats.conversations.toLocaleString(), 
+      icon: MessageSquare, 
+      color: "text-pink-600", 
+      bg: "bg-pink-50",
+      link: "/admin/messages"
     },
   ] : [];
 

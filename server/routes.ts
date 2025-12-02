@@ -684,6 +684,9 @@ export async function registerRoutes(
   app.get("/api/admin/conversations/:id", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
       const data = await storage.getConversationWithMessages(conversationId);
       if (!data) {
         return res.status(404).json({ error: "Conversation not found" });
@@ -699,7 +702,13 @@ export async function registerRoutes(
   app.delete("/api/admin/messages/:id", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const messageId = parseInt(req.params.id);
-      await storage.deleteMessage(messageId);
+      if (isNaN(messageId)) {
+        return res.status(400).json({ error: "Invalid message ID" });
+      }
+      const deleted = await storage.deleteMessage(messageId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Message not found" });
+      }
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting message:", error);
@@ -711,7 +720,13 @@ export async function registerRoutes(
   app.delete("/api/admin/conversations/:id", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const conversationId = parseInt(req.params.id);
-      await storage.deleteConversation(conversationId);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+      const deleted = await storage.deleteConversation(conversationId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting conversation:", error);

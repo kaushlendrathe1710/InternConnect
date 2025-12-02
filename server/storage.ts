@@ -512,11 +512,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteMessage(messageId: number): Promise<boolean> {
+    const [message] = await db.select().from(messages).where(eq(messages.id, messageId));
+    if (!message) return false;
+    
     await db.delete(messages).where(eq(messages.id, messageId));
+    
+    // Update conversation's updatedAt timestamp
+    await db
+      .update(conversations)
+      .set({ updatedAt: new Date() })
+      .where(eq(conversations.id, message.conversationId));
+    
     return true;
   }
 
   async deleteConversation(conversationId: number): Promise<boolean> {
+    const [conversation] = await db.select().from(conversations).where(eq(conversations.id, conversationId));
+    if (!conversation) return false;
+    
     // First delete all messages in the conversation
     await db.delete(messages).where(eq(messages.conversationId, conversationId));
     // Then delete the conversation

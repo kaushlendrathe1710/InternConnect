@@ -61,6 +61,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/admin/users", label: "User Management", icon: Users },
     { href: "/admin/internships", label: "Internships", icon: FileText },
+    { href: "/admin/messages", label: "Messages", icon: MessageSquare },
   ];
 
   const superAdminLinks = user?.isSuperAdmin ? [
