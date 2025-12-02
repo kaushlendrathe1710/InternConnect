@@ -21,6 +21,9 @@ import EmployerApplications from "@/pages/employer/applications";
 import EmployerMessages from "@/pages/employer/messages";
 import EmployerSettings from "@/pages/employer/settings";
 import AdminDashboard from "@/pages/admin/dashboard";
+import AdminUsers from "@/pages/admin/users";
+import AdminInternships from "@/pages/admin/internships";
+import ManageAdmins from "@/pages/admin/manage-admins";
 import AuthPage from "@/pages/auth/auth-page";
 import RoleSelection from "@/pages/auth/role-selection";
 
@@ -50,6 +53,9 @@ function Router() {
       
       {/* Admin Routes */}
       <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin/users" component={AdminUsers} />
+      <Route path="/admin/internships" component={AdminInternships} />
+      <Route path="/admin/manage-admins" component={ManageAdmins} />
       
       <Route component={NotFound} />
     </Switch>

@@ -24,13 +24,16 @@ import {
   Search,
   User,
   Bell,
-  ChevronDown
+  ChevronDown,
+  Shield,
+  ShieldCheck,
+  UserPlus
 } from "lucide-react";
 import { useState } from "react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  role: "student" | "employer";
+  role: "student" | "employer" | "admin";
 }
 
 export function DashboardLayout({ children, role }: DashboardLayoutProps) {
@@ -54,10 +57,29 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
     { href: "/employer/messages", label: "Messages", icon: MessageSquare },
   ];
 
-  const links = role === "student" ? studentLinks : employerLinks;
-  const settingsHref = role === "student" ? "/student/settings" : "/employer/settings";
+  const adminLinks = [
+    { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/admin/users", label: "User Management", icon: Users },
+    { href: "/admin/internships", label: "Internships", icon: FileText },
+  ];
 
-  const userName = user?.name || user?.email?.split('@')[0] || (role === 'student' ? 'Student' : 'Employer');
+  const superAdminLinks = user?.isSuperAdmin ? [
+    { href: "/admin/manage-admins", label: "Manage Admins", icon: UserPlus },
+  ] : [];
+
+  const links = role === "student" 
+    ? studentLinks 
+    : role === "employer" 
+      ? employerLinks 
+      : [...adminLinks, ...superAdminLinks];
+  
+  const settingsHref = role === "student" 
+    ? "/student/settings" 
+    : role === "employer" 
+      ? "/employer/settings" 
+      : "/admin/dashboard";
+
+  const userName = user?.name || user?.email?.split('@')[0] || (role === 'student' ? 'Student' : role === 'employer' ? 'Employer' : 'Admin');
   const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   const handleLogout = () => {
@@ -199,20 +221,22 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                </Link>
              ))}
 
-             <div className="pt-4 mt-4 border-t">
-               <Link 
-                 href={settingsHref}
-                 className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                   location === settingsHref
-                     ? "bg-blue-50 text-primary" 
-                     : "text-slate-600 hover:bg-slate-50 hover:text-foreground"
-                 }`}
-                 onClick={() => setMobileMenuOpen(false)}
-                 data-testid="nav-settings"
-               >
-                 <Settings className={`w-4 h-4 ${location === settingsHref ? "text-primary" : "text-slate-400"}`} /> Settings
-               </Link>
-             </div>
+             {role !== "admin" && (
+               <div className="pt-4 mt-4 border-t">
+                 <Link 
+                   href={settingsHref}
+                   className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                     location === settingsHref
+                       ? "bg-blue-50 text-primary" 
+                       : "text-slate-600 hover:bg-slate-50 hover:text-foreground"
+                   }`}
+                   onClick={() => setMobileMenuOpen(false)}
+                   data-testid="nav-settings"
+                 >
+                   <Settings className={`w-4 h-4 ${location === settingsHref ? "text-primary" : "text-slate-400"}`} /> Settings
+                 </Link>
+               </div>
+             )}
           </div>
           
           <div className="p-4 border-t">

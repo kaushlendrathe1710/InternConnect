@@ -11,8 +11,13 @@ export const users = pgTable("users", {
   phone: text("phone"),
   role: text("role").notNull(), // "student" | "employer" | "admin"
   isVerified: boolean("is_verified").default(false),
+  isSuperAdmin: boolean("is_super_admin").default(false),
+  isSuspended: boolean("is_suspended").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Super admin email constant - this account cannot be deleted
+export const SUPER_ADMIN_EMAIL = "kaushlendra.k12@fms.edu";
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,

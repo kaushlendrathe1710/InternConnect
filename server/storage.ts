@@ -5,6 +5,7 @@ import {
   applications,
   conversations,
   messages,
+  SUPER_ADMIN_EMAIL,
   type User, 
   type InsertUser,
   type Otp,
@@ -19,7 +20,7 @@ import {
   type InsertMessage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, or, sql } from "drizzle-orm";
+import { eq, and, desc, or, sql, ne, count } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -54,6 +55,18 @@ export interface IStorage {
   createMessage(message: InsertMessage): Promise<Message>;
   getMessagesByConversation(conversationId: number): Promise<Message[]>;
   markMessagesAsRead(conversationId: number, userId: number): Promise<void>;
+  
+  // Admin methods
+  getAllUsers(): Promise<User[]>;
+  getUsersByRole(role: string): Promise<User[]>;
+  updateUserStatus(id: number, isSuspended: boolean): Promise<User | undefined>;
+  deleteUser(id: number): Promise<boolean>;
+  createAdmin(user: InsertUser): Promise<User>;
+  getAdminStats(): Promise<{ students: number; employers: number; admins: number; internships: number; applications: number }>;
+  updateInternshipStatus(id: number, isActive: boolean): Promise<Internship | undefined>;
+  getAllInternships(): Promise<Internship[]>;
+  getAllApplications(): Promise<Application[]>;
+  ensureSuperAdmin(): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -281,6 +294,130 @@ export class DatabaseStorage implements IStorage {
           sql`${messages.senderId} != ${userId}`
         )
       );
+  }
+
+  // Admin methods
+  async getAllUsers(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .orderBy(desc(users.createdAt));
+  }
+
+  async getUsersByRole(role: string): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.role, role))
+      .orderBy(desc(users.createdAt));
+  }
+
+  async updateUserStatus(id: number, isSuspended: boolean): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    
+    if (user?.email === SUPER_ADMIN_EMAIL) {
+      throw new Error("Cannot modify super admin account");
+    }
+
+    const [updated] = await db
+      .update(users)
+      .set({ isSuspended })
+      .where(eq(users.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteUser(id: number): Promise<boolean> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    
+    if (user?.email === SUPER_ADMIN_EMAIL) {
+      throw new Error("Cannot delete super admin account");
+    }
+
+    if (user?.isSuperAdmin) {
+      throw new Error("Cannot delete super admin account");
+    }
+
+    await db.delete(users).where(eq(users.id, id));
+    return true;
+  }
+
+  async createAdmin(insertUser: InsertUser): Promise<User> {
+    const [admin] = await db
+      .insert(users)
+      .values({ ...insertUser, role: "admin" })
+      .returning();
+    return admin;
+  }
+
+  async getAdminStats(): Promise<{ students: number; employers: number; admins: number; internships: number; applications: number }> {
+    const [studentCount] = await db.select({ count: count() }).from(users).where(eq(users.role, "student"));
+    const [employerCount] = await db.select({ count: count() }).from(users).where(eq(users.role, "employer"));
+    const [adminCount] = await db.select({ count: count() }).from(users).where(eq(users.role, "admin"));
+    const [internshipCount] = await db.select({ count: count() }).from(internships);
+    const [applicationCount] = await db.select({ count: count() }).from(applications);
+
+    return {
+      students: studentCount?.count || 0,
+      employers: employerCount?.count || 0,
+      admins: adminCount?.count || 0,
+      internships: internshipCount?.count || 0,
+      applications: applicationCount?.count || 0,
+    };
+  }
+
+  async updateInternshipStatus(id: number, isActive: boolean): Promise<Internship | undefined> {
+    const [internship] = await db
+      .update(internships)
+      .set({ isActive })
+      .where(eq(internships.id, id))
+      .returning();
+    return internship || undefined;
+  }
+
+  async getAllInternships(): Promise<Internship[]> {
+    return await db
+      .select()
+      .from(internships)
+      .orderBy(desc(internships.createdAt));
+  }
+
+  async getAllApplications(): Promise<Application[]> {
+    return await db
+      .select()
+      .from(applications)
+      .orderBy(desc(applications.appliedAt));
+  }
+
+  async ensureSuperAdmin(): Promise<User> {
+    let [superAdmin] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, SUPER_ADMIN_EMAIL));
+
+    if (!superAdmin) {
+      [superAdmin] = await db
+        .insert(users)
+        .values({
+          email: SUPER_ADMIN_EMAIL,
+          name: "Super Admin",
+          role: "admin",
+          isVerified: true,
+          isSuperAdmin: true,
+          isSuspended: false,
+        })
+        .returning();
+      console.log("Super admin account created:", SUPER_ADMIN_EMAIL);
+    } else if (!superAdmin.isSuperAdmin) {
+      [superAdmin] = await db
+        .update(users)
+        .set({ isSuperAdmin: true, role: "admin" })
+        .where(eq(users.email, SUPER_ADMIN_EMAIL))
+        .returning();
+      console.log("Super admin flag updated for:", SUPER_ADMIN_EMAIL);
+    }
+
+    return superAdmin;
   }
 }
 

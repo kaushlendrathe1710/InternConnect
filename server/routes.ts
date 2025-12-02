@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { generateOTP, sendOTPEmail } from "./email";
-import { insertOtpSchema, insertUserSchema, insertInternshipSchema, insertApplicationSchema, insertMessageSchema, insertConversationSchema } from "@shared/schema";
+import { insertOtpSchema, insertUserSchema, insertInternshipSchema, insertApplicationSchema, insertMessageSchema, insertConversationSchema, SUPER_ADMIN_EMAIL } from "@shared/schema";
 import { z } from "zod";
 
 // Store active WebSocket connections by user ID
@@ -13,6 +13,14 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  
+  // Initialize super admin on server start
+  try {
+    await storage.ensureSuperAdmin();
+    console.log("Super admin initialized");
+  } catch (error) {
+    console.error("Failed to initialize super admin:", error);
+  }
   
   // ============= AUTH ROUTES =============
   
@@ -75,6 +83,11 @@ export async function registerRoutes(
       const existingUser = await storage.getUserByEmail(email);
 
       if (existingUser) {
+        // Check if user is suspended
+        if (existingUser.isSuspended) {
+          return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
+        }
+        
         // Returning user - login
         res.json({
           success: true,
@@ -85,6 +98,7 @@ export async function registerRoutes(
             name: existingUser.name,
             phone: existingUser.phone,
             role: existingUser.role,
+            isSuperAdmin: existingUser.isSuperAdmin || false,
           },
         });
       } else {
@@ -106,8 +120,8 @@ export async function registerRoutes(
     try {
       const { email, role, name, phone } = req.body;
 
-      if (!email || !role || !["student", "employer", "admin"].includes(role)) {
-        return res.status(400).json({ error: "Valid email and role are required" });
+      if (!email || !role || !["student", "employer"].includes(role)) {
+        return res.status(400).json({ error: "Valid email and role are required. Admin accounts can only be created by super admin." });
       }
 
       if (!name || !phone) {
@@ -420,16 +434,133 @@ export async function registerRoutes(
   // Get platform stats (admin only)
   app.get("/api/admin/stats", async (req: Request, res: Response) => {
     try {
-      // This is a placeholder - you'd implement proper queries
-      res.json({
-        totalStudents: 0,
-        totalEmployers: 0,
-        totalInternships: 0,
-        pendingApprovals: 0,
-      });
+      const stats = await storage.getAdminStats();
+      res.json(stats);
     } catch (error) {
       console.error("Error fetching admin stats:", error);
       res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+  // Get all users (admin only)
+  app.get("/api/admin/users", async (req: Request, res: Response) => {
+    try {
+      const role = req.query.role as string | undefined;
+      const users = role ? await storage.getUsersByRole(role) : await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  // Suspend/unsuspend user (admin only)
+  app.post("/api/admin/users/:id/suspend", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { isSuspended } = req.body;
+
+      const user = await storage.updateUserStatus(userId, isSuspended);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json(user);
+    } catch (error: any) {
+      console.error("Error updating user status:", error);
+      res.status(400).json({ error: error.message || "Failed to update user status" });
+    }
+  });
+
+  // Delete user (admin only)
+  app.delete("/api/admin/users/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      await storage.deleteUser(userId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      res.status(400).json({ error: error.message || "Failed to delete user" });
+    }
+  });
+
+  // Create admin account (super admin only)
+  app.post("/api/admin/create-admin", async (req: Request, res: Response) => {
+    try {
+      const { email, name, phone, requesterId } = req.body;
+
+      if (!requesterId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Verify requester is super admin
+      const requester = await storage.getUser(requesterId);
+      if (!requester || !requester.isSuperAdmin) {
+        return res.status(403).json({ error: "Only super admin can create admin accounts" });
+      }
+
+      if (!email || !name) {
+        return res.status(400).json({ error: "Email and name are required" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ error: "User with this email already exists" });
+      }
+
+      const newAdmin = await storage.createAdmin({
+        email,
+        name,
+        phone: phone || "",
+        role: "admin",
+        isVerified: true,
+        isSuperAdmin: false,
+        isSuspended: false,
+      });
+
+      res.json(newAdmin);
+    } catch (error) {
+      console.error("Error creating admin:", error);
+      res.status(500).json({ error: "Failed to create admin" });
+    }
+  });
+
+  // Get all internships for moderation (admin only)
+  app.get("/api/admin/internships", async (req: Request, res: Response) => {
+    try {
+      const internships = await storage.getAllInternships();
+      res.json(internships);
+    } catch (error) {
+      console.error("Error fetching internships:", error);
+      res.status(500).json({ error: "Failed to fetch internships" });
+    }
+  });
+
+  // Update internship status (admin only)
+  app.post("/api/admin/internships/:id/status", async (req: Request, res: Response) => {
+    try {
+      const internshipId = parseInt(req.params.id);
+      const { isActive } = req.body;
+
+      const internship = await storage.updateInternshipStatus(internshipId, isActive);
+      if (!internship) {
+        return res.status(404).json({ error: "Internship not found" });
+      }
+      res.json(internship);
+    } catch (error) {
+      console.error("Error updating internship status:", error);
+      res.status(500).json({ error: "Failed to update internship status" });
+    }
+  });
+
+  // Get all applications (admin only)
+  app.get("/api/admin/applications", async (req: Request, res: Response) => {
+    try {
+      const applications = await storage.getAllApplications();
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching applications:", error);
+      res.status(500).json({ error: "Failed to fetch applications" });
     }
   });
 

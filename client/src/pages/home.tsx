@@ -1,8 +1,8 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, TrendingUp, Briefcase, GraduationCap, ChevronRight } from "lucide-react";
-import { Link } from "wouter";
+import { Search, TrendingUp, Briefcase, GraduationCap, ChevronRight, Shield } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { MOCK_INTERNSHIPS, Internship } from "@/lib/mockData";
 import { InternshipCard } from "@/components/ui/internship-card";
 
@@ -176,6 +176,23 @@ export default function Home() {
                <div className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center hover:bg-primary cursor-pointer transition-colors">in</div>
                <div className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center hover:bg-primary cursor-pointer transition-colors">t</div>
             </div>
+          </div>
+        </div>
+        
+        {/* Admin Login Link */}
+        <div className="container mx-auto px-4 mt-8 pt-6 border-t border-slate-800">
+          <div className="flex justify-center">
+            <Link href="/login?role=admin">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-slate-500 hover:text-slate-300 hover:bg-slate-800"
+                data-testid="button-admin-login"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Admin Login
+              </Button>
+            </Link>
           </div>
         </div>
       </footer>

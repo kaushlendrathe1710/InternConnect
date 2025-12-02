@@ -9,6 +9,7 @@ interface User {
   role: UserRole;
   name?: string;
   phone?: string;
+  isSuperAdmin?: boolean;
 }
 
 interface AuthContextType {

@@ -1,157 +1,300 @@
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
   Building2, 
   FileText, 
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  MoreHorizontal,
-  Shield
+  Briefcase,
+  Shield,
+  ShieldCheck,
+  TrendingUp,
+  UserPlus,
+  Settings,
+  BarChart3,
+  Loader2
 } from "lucide-react";
+import { Link } from "wouter";
+
+interface AdminStats {
+  students: number;
+  employers: number;
+  admins: number;
+  internships: number;
+  applications: number;
+}
 
 export default function AdminDashboard() {
-  const stats = [
-    { label: "Total Students", value: "12,450", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Total Employers", value: "850", icon: Building2, color: "text-purple-600", bg: "bg-purple-50" },
-    { label: "Active Internships", value: "2,300", icon: FileText, color: "text-green-600", bg: "bg-green-50" },
-    { label: "Pending Approvals", value: "45", icon: AlertTriangle, color: "text-orange-600", bg: "bg-orange-50" },
-  ];
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const pendingCompanies = [
-    { id: 1, name: "InnovateX Tech", type: "IT Services", joined: "2 hours ago", status: "Pending" },
-    { id: 2, name: "GreenEarth Solutions", type: "NGO", joined: "5 hours ago", status: "Pending" },
-    { id: 3, name: "Alpha Finance", type: "Fintech", joined: "1 day ago", status: "Pending" },
-  ];
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch("/api/admin/stats");
+        if (!response.ok) throw new Error("Failed to fetch stats");
+        const data = await response.json();
+        setStats(data);
+      } catch (error) {
+        console.error("Error fetching admin stats:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard statistics",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
-  const flaggedInternships = [
-    { id: 101, title: "Quick Money Scheme", company: "BizGrowth Ltd", reason: "Suspicious Content", reportedBy: "3 Users" },
-    { id: 102, title: "Unpaid Full Time Dev", company: "StartupX", reason: "Policy Violation", reportedBy: "1 User" },
-  ];
+  const statCards = stats ? [
+    { 
+      label: "Total Students", 
+      value: stats.students.toLocaleString(), 
+      icon: Users, 
+      color: "text-blue-600", 
+      bg: "bg-blue-50",
+      link: "/admin/users?role=student"
+    },
+    { 
+      label: "Total Employers", 
+      value: stats.employers.toLocaleString(), 
+      icon: Building2, 
+      color: "text-purple-600", 
+      bg: "bg-purple-50",
+      link: "/admin/users?role=employer"
+    },
+    { 
+      label: "Active Internships", 
+      value: stats.internships.toLocaleString(), 
+      icon: FileText, 
+      color: "text-green-600", 
+      bg: "bg-green-50",
+      link: "/admin/internships"
+    },
+    { 
+      label: "Applications", 
+      value: stats.applications.toLocaleString(), 
+      icon: Briefcase, 
+      color: "text-orange-600", 
+      bg: "bg-orange-50",
+      link: "/admin/applications"
+    },
+  ] : [];
+
+  if (loading) {
+    return (
+      <DashboardLayout role="admin">
+        <div className="flex items-center justify-center h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
-    <DashboardLayout role="student"> {/* Reusing layout, role prop is just for context in this mockup */}
-       <div className="space-y-8">
+    <DashboardLayout role="admin">
+      <div className="space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-              <Shield className="w-6 h-6 text-primary" /> Admin Dashboard
+            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2" data-testid="text-page-title">
+              {user?.isSuperAdmin ? (
+                <ShieldCheck className="w-6 h-6 text-amber-500" />
+              ) : (
+                <Shield className="w-6 h-6 text-primary" />
+              )}
+              {user?.isSuperAdmin ? "Super Admin Dashboard" : "Admin Dashboard"}
             </h1>
-            <p className="text-muted-foreground">Platform overview and moderation tools.</p>
+            <p className="text-muted-foreground">
+              {user?.isSuperAdmin 
+                ? "Full platform control and admin management" 
+                : "Platform overview and moderation tools"
+              }
+            </p>
           </div>
-          <div className="flex gap-2">
-             <Button variant="outline">System Logs</Button>
-             <Button>Export Reports</Button>
-          </div>
+          {user?.isSuperAdmin && (
+            <Badge className="bg-amber-100 text-amber-800 border-amber-300">
+              <ShieldCheck className="w-3 h-3 mr-1" />
+              Super Admin
+            </Badge>
+          )}
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((stat, index) => (
-            <Card key={index}>
-              <CardContent className="p-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-                  <h3 className="text-2xl font-bold mt-1">{stat.value}</h3>
-                </div>
-                <div className={`p-3 rounded-full ${stat.bg} ${stat.color}`}>
-                  <stat.icon className="w-6 h-6" />
-                </div>
-              </CardContent>
-            </Card>
+          {statCards.map((stat, index) => (
+            <Link key={index} href={stat.link}>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                <CardContent className="p-6 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                    <h3 className="text-2xl font-bold mt-1">{stat.value}</h3>
+                  </div>
+                  <div className={`p-3 rounded-full ${stat.bg} ${stat.color}`}>
+                    <stat.icon className="w-6 h-6" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-           {/* Pending Company Approvals */}
-           <Card>
-             <CardHeader>
-               <CardTitle className="text-lg font-semibold flex items-center justify-between">
-                 <span>Pending Company Verifications</span>
-                 <Badge variant="secondary">3 New</Badge>
-               </CardTitle>
-             </CardHeader>
-             <CardContent className="p-0">
-                <table className="w-full text-sm text-left">
-                   <thead className="bg-slate-50 text-slate-500 font-medium border-b">
-                     <tr>
-                       <th className="px-6 py-3">Company</th>
-                       <th className="px-6 py-3">Joined</th>
-                       <th className="px-6 py-3 text-right">Action</th>
-                     </tr>
-                   </thead>
-                   <tbody className="divide-y">
-                     {pendingCompanies.map((company) => (
-                       <tr key={company.id} className="hover:bg-slate-50/50">
-                         <td className="px-6 py-4">
-                           <div className="font-medium text-slate-900">{company.name}</div>
-                           <div className="text-slate-500 text-xs">{company.type}</div>
-                         </td>
-                         <td className="px-6 py-4 text-slate-500">{company.joined}</td>
-                         <td className="px-6 py-4 text-right space-x-2">
-                           <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50">
-                             <CheckCircle2 className="w-5 h-5" />
-                           </Button>
-                           <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50">
-                             <XCircle className="w-5 h-5" />
-                           </Button>
-                         </td>
-                       </tr>
-                     ))}
-                   </tbody>
-                </table>
-                <div className="p-4 border-t text-center">
-                  <Button variant="link" size="sm">View All Requests</Button>
-                </div>
-             </CardContent>
-           </Card>
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                User Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                View, verify, and manage student and employer accounts.
+              </p>
+              <div className="flex gap-2">
+                <Link href="/admin/users">
+                  <Button size="sm" data-testid="button-manage-users">Manage Users</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
 
-           {/* Content Moderation */}
-           <Card>
-             <CardHeader>
-               <CardTitle className="text-lg font-semibold flex items-center justify-between">
-                 <span className="flex items-center gap-2 text-red-600">
-                   <AlertTriangle className="w-5 h-5" /> Flagged Content
-                 </span>
-               </CardTitle>
-             </CardHeader>
-             <CardContent className="p-0">
-                <table className="w-full text-sm text-left">
-                   <thead className="bg-slate-50 text-slate-500 font-medium border-b">
-                     <tr>
-                       <th className="px-6 py-3">Internship</th>
-                       <th className="px-6 py-3">Reason</th>
-                       <th className="px-6 py-3 text-right">Review</th>
-                     </tr>
-                   </thead>
-                   <tbody className="divide-y">
-                     {flaggedInternships.map((item) => (
-                       <tr key={item.id} className="hover:bg-slate-50/50">
-                         <td className="px-6 py-4">
-                           <div className="font-medium text-slate-900 truncate max-w-[150px]" title={item.title}>{item.title}</div>
-                           <div className="text-slate-500 text-xs">{item.company}</div>
-                         </td>
-                         <td className="px-6 py-4">
-                           <Badge variant="destructive" className="font-normal text-xs">
-                             {item.reason}
-                           </Badge>
-                           <div className="text-xs text-muted-foreground mt-1">By {item.reportedBy}</div>
-                         </td>
-                         <td className="px-6 py-4 text-right">
-                           <Button variant="outline" size="sm" className="h-8">Review</Button>
-                         </td>
-                       </tr>
-                     ))}
-                   </tbody>
-                </table>
-             </CardContent>
-           </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="w-5 h-5 text-green-600" />
+                Internship Moderation
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Review, approve, or remove internship postings.
+              </p>
+              <div className="flex gap-2">
+                <Link href="/admin/internships">
+                  <Button size="sm" data-testid="button-manage-internships">View Internships</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-purple-600" />
+                Analytics
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                View platform metrics and growth statistics.
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" disabled data-testid="button-view-analytics">
+                  Coming Soon
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-       </div>
+
+        {/* Super Admin Only Section */}
+        {user?.isSuperAdmin && (
+          <div className="mt-8">
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-4">
+              <ShieldCheck className="w-5 h-5 text-amber-500" />
+              Super Admin Controls
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="border-amber-200 bg-amber-50/30">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <UserPlus className="w-5 h-5 text-amber-600" />
+                    Admin Management
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Create new admin accounts and manage admin permissions.
+                  </p>
+                  <div className="flex gap-2">
+                    <Link href="/admin/manage-admins">
+                      <Button size="sm" className="bg-amber-600 hover:bg-amber-700" data-testid="button-manage-admins">
+                        Manage Admins
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-amber-200 bg-amber-50/30">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-amber-600" />
+                    System Settings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Configure platform settings and system preferences.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" disabled data-testid="button-system-settings">
+                      Coming Soon
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Admin Stats Summary */}
+        {stats && stats.admins > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                Platform Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <div className="text-2xl font-bold text-slate-900">{stats.students}</div>
+                  <div className="text-xs text-muted-foreground">Students</div>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <div className="text-2xl font-bold text-slate-900">{stats.employers}</div>
+                  <div className="text-xs text-muted-foreground">Employers</div>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <div className="text-2xl font-bold text-slate-900">{stats.admins}</div>
+                  <div className="text-xs text-muted-foreground">Admins</div>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <div className="text-2xl font-bold text-slate-900">{stats.internships}</div>
+                  <div className="text-xs text-muted-foreground">Internships</div>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <div className="text-2xl font-bold text-slate-900">{stats.applications}</div>
+                  <div className="text-xs text-muted-foreground">Applications</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </DashboardLayout>
   );
 }

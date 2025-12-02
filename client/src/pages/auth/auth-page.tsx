@@ -84,6 +84,7 @@ export default function AuthPage() {
           role: data.user.role,
           name: data.user.name,
           phone: data.user.phone,
+          isSuperAdmin: data.user.isSuperAdmin,
         });
         toast({ 
           title: `Welcome back, ${data.user.name || data.user.email}!` 
