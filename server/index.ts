@@ -1,14 +1,28 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import MemoryStore from "memorystore";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import crypto from "crypto";
 
 const app = express();
 const httpServer = createServer(app);
 
+const MemoryStoreSession = MemoryStore(session);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
+  }
+}
+
+declare module "express-session" {
+  interface SessionData {
+    userId: number;
+    email: string;
+    role: string;
+    isSuperAdmin: boolean;
   }
 }
 
@@ -21,6 +35,23 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex"),
+    resave: false,
+    saveUninitialized: false,
+    store: new MemoryStoreSession({
+      checkPeriod: 86400000,
+    }),
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+      sameSite: "lax",
+    },
+  }),
+);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

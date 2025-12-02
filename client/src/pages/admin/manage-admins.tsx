@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, authFetch } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { 
@@ -68,7 +68,7 @@ export default function ManageAdmins() {
 
     const fetchAdmins = async () => {
       try {
-        const response = await fetch("/api/admin/users?role=admin");
+        const response = await authFetch("/api/admin/users?role=admin");
         if (!response.ok) throw new Error("Failed to fetch admins");
         const data = await response.json();
         setAdmins(data);
@@ -98,14 +98,12 @@ export default function ManageAdmins() {
 
     setCreateLoading(true);
     try {
-      const response = await fetch("/api/admin/create-admin", {
+      const response = await authFetch("/api/admin/create-admin", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: newAdminEmail,
           name: newAdminName,
           phone: newAdminPhone,
-          requesterId: currentUser?.id,
         }),
       });
 
@@ -139,9 +137,8 @@ export default function ManageAdmins() {
   const handleSuspend = async (adminId: number, suspend: boolean) => {
     setActionLoading(adminId);
     try {
-      const response = await fetch(`/api/admin/users/${adminId}/suspend`, {
+      const response = await authFetch(`/api/admin/users/${adminId}/suspend`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isSuspended: suspend }),
       });
       
@@ -171,7 +168,7 @@ export default function ManageAdmins() {
   const handleDelete = async (adminId: number) => {
     setActionLoading(adminId);
     try {
-      const response = await fetch(`/api/admin/users/${adminId}`, {
+      const response = await authFetch(`/api/admin/users/${adminId}`, {
         method: "DELETE",
       });
       

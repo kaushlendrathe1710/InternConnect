@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, authFetch } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
@@ -37,7 +37,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch("/api/admin/stats");
+        const response = await authFetch("/api/admin/stats");
         if (!response.ok) throw new Error("Failed to fetch stats");
         const data = await response.json();
         setStats(data);

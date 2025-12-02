@@ -20,7 +20,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, authFetch } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { 
@@ -73,7 +73,7 @@ export default function AdminUsers() {
         const url = roleFilter !== "all" 
           ? `/api/admin/users?role=${roleFilter}` 
           : "/api/admin/users";
-        const response = await fetch(url);
+        const response = await authFetch(url);
         if (!response.ok) throw new Error("Failed to fetch users");
         const data = await response.json();
         setUsers(data);
@@ -94,9 +94,8 @@ export default function AdminUsers() {
   const handleSuspend = async (userId: number, suspend: boolean) => {
     setActionLoading(userId);
     try {
-      const response = await fetch(`/api/admin/users/${userId}/suspend`, {
+      const response = await authFetch(`/api/admin/users/${userId}/suspend`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isSuspended: suspend }),
       });
       
@@ -128,7 +127,7 @@ export default function AdminUsers() {
     
     setActionLoading(userToDelete.id);
     try {
-      const response = await fetch(`/api/admin/users/${userToDelete.id}`, {
+      const response = await authFetch(`/api/admin/users/${userToDelete.id}`, {
         method: "DELETE",
       });
       

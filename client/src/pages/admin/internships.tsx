@@ -11,6 +11,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { useAuth, authFetch } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { 
   FileText, 
@@ -43,6 +44,7 @@ interface Internship {
 }
 
 export default function AdminInternships() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [internships, setInternships] = useState<Internship[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +56,7 @@ export default function AdminInternships() {
     const fetchInternships = async () => {
       setLoading(true);
       try {
-        const response = await fetch("/api/admin/internships");
+        const response = await authFetch("/api/admin/internships");
         if (!response.ok) throw new Error("Failed to fetch internships");
         const data = await response.json();
         setInternships(data);
@@ -75,9 +77,8 @@ export default function AdminInternships() {
   const handleStatusChange = async (internshipId: number, isActive: boolean) => {
     setActionLoading(internshipId);
     try {
-      const response = await fetch(`/api/admin/internships/${internshipId}/status`, {
+      const response = await authFetch(`/api/admin/internships/${internshipId}/status`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive }),
       });
       

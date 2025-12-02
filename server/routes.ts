@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
@@ -8,6 +8,65 @@ import { z } from "zod";
 
 // Store active WebSocket connections by user ID
 const userConnections = new Map<number, WebSocket>();
+
+// Extended Request interface with session user
+interface AuthenticatedRequest extends Request {
+  sessionUser?: {
+    id: number;
+    email: string;
+    role: string;
+    isSuperAdmin: boolean;
+  };
+}
+
+// Session-based authentication middleware
+async function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    if (!req.session || !req.session.userId) {
+      return res.status(401).json({ error: "Authentication required. Please login." });
+    }
+
+    const user = await storage.getUser(req.session.userId);
+    
+    if (!user) {
+      req.session.destroy(() => {});
+      return res.status(401).json({ error: "User not found. Please login again." });
+    }
+
+    if (user.isSuspended) {
+      req.session.destroy(() => {});
+      return res.status(403).json({ error: "Account suspended" });
+    }
+
+    req.sessionUser = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isSuperAdmin: user.isSuperAdmin || false,
+    };
+
+    next();
+  } catch (error) {
+    console.error("Auth middleware error:", error);
+    res.status(500).json({ error: "Authentication failed" });
+  }
+}
+
+// Admin authorization middleware
+async function adminMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!req.sessionUser || req.sessionUser.role !== "admin") {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  next();
+}
+
+// Super admin authorization middleware
+async function superAdminMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!req.sessionUser || !req.sessionUser.isSuperAdmin) {
+    return res.status(403).json({ error: "Super admin access required" });
+  }
+  next();
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -88,6 +147,12 @@ export async function registerRoutes(
           return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
         }
         
+        // Set session
+        req.session.userId = existingUser.id;
+        req.session.email = existingUser.email;
+        req.session.role = existingUser.role;
+        req.session.isSuperAdmin = existingUser.isSuperAdmin || false;
+        
         // Returning user - login
         res.json({
           success: true,
@@ -143,6 +208,12 @@ export async function registerRoutes(
         isVerified: true,
       });
 
+      // Set session for new user
+      req.session.userId = newUser.id;
+      req.session.email = newUser.email;
+      req.session.role = newUser.role;
+      req.session.isSuperAdmin = false;
+
       res.json({
         success: true,
         user: {
@@ -159,21 +230,23 @@ export async function registerRoutes(
     }
   });
 
-  // Get current user (session check)
+  // Get current user from session
   app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {
-      // In a real app, you'd use session middleware or JWT
-      // For now, we'll use a simple user_id from query/header
-      const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
-
-      if (!userId) {
+      if (!req.session || !req.session.userId) {
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(req.session.userId);
 
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        req.session.destroy(() => {});
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      if (user.isSuspended) {
+        req.session.destroy(() => {});
+        return res.status(403).json({ error: "Account suspended" });
       }
 
       res.json({
@@ -181,11 +254,24 @@ export async function registerRoutes(
         email: user.email,
         name: user.name,
         role: user.role,
+        isSuperAdmin: user.isSuperAdmin || false,
       });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ error: "Failed to fetch user" });
     }
+  });
+
+  // Logout - destroy session
+  app.post("/api/auth/logout", (req: Request, res: Response) => {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Error destroying session:", err);
+        return res.status(500).json({ error: "Failed to logout" });
+      }
+      res.clearCookie("connect.sid");
+      res.json({ success: true });
+    });
   });
 
   // ============= INTERNSHIP ROUTES =============
@@ -432,7 +518,7 @@ export async function registerRoutes(
   // ============= ADMIN ROUTES =============
 
   // Get platform stats (admin only)
-  app.get("/api/admin/stats", async (req: Request, res: Response) => {
+  app.get("/api/admin/stats", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const stats = await storage.getAdminStats();
       res.json(stats);
@@ -443,7 +529,7 @@ export async function registerRoutes(
   });
 
   // Get all users (admin only)
-  app.get("/api/admin/users", async (req: Request, res: Response) => {
+  app.get("/api/admin/users", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const role = req.query.role as string | undefined;
       const users = role ? await storage.getUsersByRole(role) : await storage.getAllUsers();
@@ -455,10 +541,16 @@ export async function registerRoutes(
   });
 
   // Suspend/unsuspend user (admin only)
-  app.post("/api/admin/users/:id/suspend", async (req: Request, res: Response) => {
+  app.post("/api/admin/users/:id/suspend", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const userId = parseInt(req.params.id);
       const { isSuspended } = req.body;
+
+      // Additional check: only super admin can suspend other admins
+      const targetUser = await storage.getUser(userId);
+      if (targetUser?.role === "admin" && !req.sessionUser?.isSuperAdmin) {
+        return res.status(403).json({ error: "Only super admin can suspend other admins" });
+      }
 
       const user = await storage.updateUserStatus(userId, isSuspended);
       if (!user) {
@@ -472,9 +564,16 @@ export async function registerRoutes(
   });
 
   // Delete user (admin only)
-  app.delete("/api/admin/users/:id", async (req: Request, res: Response) => {
+  app.delete("/api/admin/users/:id", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const userId = parseInt(req.params.id);
+      
+      // Additional check: only super admin can delete admins
+      const targetUser = await storage.getUser(userId);
+      if (targetUser?.role === "admin" && !req.sessionUser?.isSuperAdmin) {
+        return res.status(403).json({ error: "Only super admin can delete admin accounts" });
+      }
+
       await storage.deleteUser(userId);
       res.json({ success: true });
     } catch (error: any) {
@@ -484,19 +583,9 @@ export async function registerRoutes(
   });
 
   // Create admin account (super admin only)
-  app.post("/api/admin/create-admin", async (req: Request, res: Response) => {
+  app.post("/api/admin/create-admin", authMiddleware as any, superAdminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { email, name, phone, requesterId } = req.body;
-
-      if (!requesterId) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-
-      // Verify requester is super admin
-      const requester = await storage.getUser(requesterId);
-      if (!requester || !requester.isSuperAdmin) {
-        return res.status(403).json({ error: "Only super admin can create admin accounts" });
-      }
+      const { email, name, phone } = req.body;
 
       if (!email || !name) {
         return res.status(400).json({ error: "Email and name are required" });
@@ -526,7 +615,7 @@ export async function registerRoutes(
   });
 
   // Get all internships for moderation (admin only)
-  app.get("/api/admin/internships", async (req: Request, res: Response) => {
+  app.get("/api/admin/internships", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const internships = await storage.getAllInternships();
       res.json(internships);
@@ -537,7 +626,7 @@ export async function registerRoutes(
   });
 
   // Update internship status (admin only)
-  app.post("/api/admin/internships/:id/status", async (req: Request, res: Response) => {
+  app.post("/api/admin/internships/:id/status", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const internshipId = parseInt(req.params.id);
       const { isActive } = req.body;
@@ -554,7 +643,7 @@ export async function registerRoutes(
   });
 
   // Get all applications (admin only)
-  app.get("/api/admin/applications", async (req: Request, res: Response) => {
+  app.get("/api/admin/applications", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const applications = await storage.getAllApplications();
       res.json(applications);
