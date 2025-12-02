@@ -29,20 +29,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [, setLocation] = useLocation();
 
-  // Load user from localStorage on mount
+  // Load user from localStorage and verify session on mount
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem(STORAGE_KEY);
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
+    const verifySession = async () => {
+      try {
+        const storedUser = localStorage.getItem(STORAGE_KEY);
+        if (storedUser) {
+          // Verify the session is still valid on the server
+          const response = await fetch("/api/auth/me", {
+            credentials: "include",
+          });
+          
+          if (response.ok) {
+            const serverUser = await response.json();
+            setUser(serverUser);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(serverUser));
+          } else {
+            // Session expired or invalid - clear local storage
+            console.log("Session expired, logging out");
+            localStorage.removeItem(STORAGE_KEY);
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error("Error verifying session:", error);
+        localStorage.removeItem(STORAGE_KEY);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Error loading user from storage:", error);
-      localStorage.removeItem(STORAGE_KEY);
-    } finally {
-      setIsLoading(false);
-    }
+    };
+    
+    verifySession();
   }, []);
 
   const login = (userData: User) => {
@@ -61,7 +79,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
     setLocation("/");
