@@ -79,13 +79,15 @@ export default function Home() {
               "MBA", "Part-time", "Human Resources", "Law",
               "Architecture", "Graphic Design", "Media", "Teaching"
             ].map((cat) => (
-              <Link key={cat} href="/search">
-                <a className="group flex flex-col items-center justify-center p-6 rounded-xl border bg-card hover:border-primary/50 hover:shadow-lg transition-all duration-300 text-center">
-                  <div className="mb-3 p-3 bg-primary/5 rounded-full group-hover:bg-primary/10 transition-colors">
-                     <TrendingUp className="w-6 h-6 text-primary" />
-                  </div>
-                  <span className="font-semibold text-sm group-hover:text-primary transition-colors">{cat}</span>
-                </a>
+              <Link 
+                key={cat} 
+                href="/search"
+                className="group flex flex-col items-center justify-center p-6 rounded-xl border bg-card hover:border-primary/50 hover:shadow-lg transition-all duration-300 text-center"
+              >
+                <div className="mb-3 p-3 bg-primary/5 rounded-full group-hover:bg-primary/10 transition-colors">
+                   <TrendingUp className="w-6 h-6 text-primary" />
+                </div>
+                <span className="font-semibold text-sm group-hover:text-primary transition-colors">{cat}</span>
               </Link>
             ))}
           </div>
@@ -100,8 +102,12 @@ export default function Home() {
                 <h2 className="text-3xl font-bold mb-2">Latest Internships</h2>
                 <p className="text-muted-foreground">Apply to the newest opportunities</p>
              </div>
-             <Link href="/search">
-               <Button variant="ghost" className="text-primary hover:bg-primary/5">View all internships <ChevronRight className="w-4 h-4 ml-1" /></Button>
+             <Link 
+               href="/search"
+               className="inline-flex items-center justify-center gap-1 text-primary hover:bg-primary/5 rounded-md px-4 py-2 text-sm font-medium"
+               data-testid="button-view-all-internships"
+             >
+               View all internships <ChevronRight className="w-4 h-4" />
              </Link>
           </div>
 
@@ -129,12 +135,20 @@ export default function Home() {
               Whether you're looking for a summer internship or your first job.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-               <Button size="lg" variant="secondary" className="text-primary font-bold px-8 shadow-xl hover:scale-105 transition-transform">
-                 Register Now
-               </Button>
-               <Button size="lg" variant="outline" className="bg-transparent border-white text-white hover:bg-white/10 font-semibold px-8">
+               <Link 
+                 href="/auth"
+                 className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md bg-secondary text-primary font-bold px-8 h-12 shadow-xl hover:scale-105 transition-transform"
+                 data-testid="button-login-cta"
+               >
+                 Login
+               </Link>
+               <Link 
+                 href="/employer/dashboard"
+                 className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md bg-transparent border-2 border-white text-white hover:bg-white/10 font-semibold px-8 h-12"
+                 data-testid="button-post-internship"
+               >
                  Post an Internship
-               </Button>
+               </Link>
             </div>
          </div>
       </section>
@@ -182,16 +196,13 @@ export default function Home() {
         {/* Admin Login Link */}
         <div className="container mx-auto px-4 mt-8 pt-6 border-t border-slate-800">
           <div className="flex justify-center">
-            <Link href="/login?role=admin">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-slate-500 hover:text-slate-300 hover:bg-slate-800"
-                data-testid="button-admin-login"
-              >
-                <Shield className="w-4 h-4 mr-2" />
-                Admin Login
-              </Button>
+            <Link 
+              href="/login?role=admin"
+              className="inline-flex items-center justify-center gap-2 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-md px-3 py-2 text-sm"
+              data-testid="button-admin-login"
+            >
+              <Shield className="w-4 h-4" />
+              Admin Login
             </Link>
           </div>
         </div>
