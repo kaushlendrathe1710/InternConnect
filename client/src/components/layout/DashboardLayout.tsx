@@ -1,6 +1,14 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   LayoutDashboard, 
   FileText, 
@@ -13,7 +21,10 @@ import {
   MessageSquare,
   Menu,
   X,
-  Search
+  Search,
+  User,
+  Bell,
+  ChevronDown
 } from "lucide-react";
 import { useState } from "react";
 
@@ -23,7 +34,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, role }: DashboardLayoutProps) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -89,13 +100,62 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
           </Link>
         </div>
         
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground hidden md:inline-block">
-            Welcome, {userName}
-          </span>
-          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-            {userInitials}
-          </div>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
+            <Bell className="h-5 w-5 text-slate-500" />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+          </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button 
+                className="flex items-center gap-2 hover:bg-slate-50 rounded-lg px-2 py-1.5 transition-colors"
+                data-testid="button-profile-menu"
+              >
+                <span className="text-sm text-muted-foreground hidden md:inline-block">
+                  {userName}
+                </span>
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                  {userInitials}
+                </div>
+                <ChevronDown className="h-4 w-4 text-slate-400 hidden md:block" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col">
+                  <span className="font-medium">{userName}</span>
+                  <span className="text-xs text-muted-foreground font-normal">{user?.email}</span>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                className="cursor-pointer"
+                onClick={() => navigate(settingsHref)}
+                data-testid="menu-profile"
+              >
+                <User className="mr-2 h-4 w-4" />
+                <span>My Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="cursor-pointer"
+                onClick={() => navigate(settingsHref)}
+                data-testid="menu-settings"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                className="cursor-pointer text-red-600 focus:text-red-600"
+                onClick={handleLogout}
+                data-testid="menu-logout"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
