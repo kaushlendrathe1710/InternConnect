@@ -1,8 +1,10 @@
+import { useLocation } from "wouter";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/lib/auth-context";
 import { 
   Briefcase, 
   CheckCircle2, 
@@ -10,10 +12,14 @@ import {
   FileText, 
   MoreHorizontal, 
   MapPin,
-  ExternalLink
+  ExternalLink,
+  Search
 } from "lucide-react";
 
 export default function StudentDashboard() {
+  const [, navigate] = useLocation();
+  const { user } = useAuth();
+
   const applications = [
     {
       id: 1,
@@ -50,39 +56,48 @@ export default function StudentDashboard() {
     }
   };
 
+  const userName = user?.name?.split(' ')[0] || 'there';
+
   return (
     <DashboardLayout role="student">
       <div className="space-y-8">
         {/* Welcome Section */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+            <h1 className="text-2xl font-bold text-slate-900" data-testid="text-dashboard-title">Dashboard</h1>
             <p className="text-muted-foreground">Track your applications and profile performance.</p>
           </div>
-          <Button className="shadow-sm">Find New Internships</Button>
+          <Button 
+            className="shadow-sm"
+            onClick={() => navigate("/search")}
+            data-testid="button-find-internships"
+          >
+            <Search className="w-4 h-4 mr-2" />
+            Find New Internships
+          </Button>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/student/applications")}>
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 bg-blue-50 rounded-full text-primary">
                 <Briefcase className="w-6 h-6" />
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Applied</p>
-                <h3 className="text-2xl font-bold">12</h3>
+                <h3 className="text-2xl font-bold" data-testid="text-total-applied">12</h3>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/student/applications?status=shortlisted")}>
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 bg-green-50 rounded-full text-green-600">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Shortlisted</p>
-                <h3 className="text-2xl font-bold">3</h3>
+                <h3 className="text-2xl font-bold" data-testid="text-shortlisted">3</h3>
               </div>
             </CardContent>
           </Card>
@@ -93,7 +108,7 @@ export default function StudentDashboard() {
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Interviews</p>
-                <h3 className="text-2xl font-bold">1</h3>
+                <h3 className="text-2xl font-bold" data-testid="text-interviews">1</h3>
               </div>
             </CardContent>
           </Card>
@@ -119,7 +134,7 @@ export default function StudentDashboard() {
                    </thead>
                    <tbody className="divide-y">
                      {applications.map((app) => (
-                       <tr key={app.id} className="hover:bg-slate-50/50">
+                       <tr key={app.id} className="hover:bg-slate-50/50" data-testid={`row-application-${app.id}`}>
                          <td className="px-6 py-4">
                            <div className="font-medium text-slate-900">{app.role}</div>
                            <div className="text-slate-500 text-xs">{app.company}</div>
@@ -133,7 +148,12 @@ export default function StudentDashboard() {
                            {app.appliedOn}
                          </td>
                          <td className="px-6 py-4 text-right">
-                           <Button variant="ghost" size="icon" className="h-8 w-8">
+                           <Button 
+                             variant="ghost" 
+                             size="icon" 
+                             className="h-8 w-8"
+                             data-testid={`button-action-${app.id}`}
+                           >
                              <MoreHorizontal className="w-4 h-4 text-slate-400" />
                            </Button>
                          </td>
@@ -143,7 +163,14 @@ export default function StudentDashboard() {
                  </table>
                </div>
                <div className="p-4 border-t bg-slate-50/50 text-center">
-                 <Button variant="link" className="text-primary">View All Applications</Button>
+                 <Button 
+                   variant="link" 
+                   className="text-primary"
+                   onClick={() => navigate("/student/applications")}
+                   data-testid="button-view-all-applications"
+                 >
+                   View All Applications
+                 </Button>
                </div>
              </div>
           </div>
@@ -163,7 +190,7 @@ export default function StudentDashboard() {
                         <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="8" 
                                 strokeDasharray="251.2" strokeDashoffset="62.8" className="text-green-500 transition-all duration-1000 ease-out" />
                       </svg>
-                      <span className="absolute text-2xl font-bold text-slate-700">75%</span>
+                      <span className="absolute text-2xl font-bold text-slate-700" data-testid="text-profile-strength">75%</span>
                    </div>
                    <p className="font-medium text-slate-900">Intermediate</p>
                 </div>
@@ -172,7 +199,7 @@ export default function StudentDashboard() {
                   <h4 className="text-sm font-medium text-slate-500 uppercase tracking-wider">Pending Actions</h4>
                   <div className="space-y-2">
                     {[
-                      { label: "Add Project Portfolio", done: false },
+                      { label: "Add Project Portfolio", done: false, action: () => navigate("/student/resume") },
                       { label: "Verify Email", done: true },
                       { label: "Add Skills", done: true },
                       { label: "Upload Resume", done: true }
@@ -181,14 +208,29 @@ export default function StudentDashboard() {
                         <span className={`${item.done ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{item.label}</span>
                         {item.done 
                           ? <CheckCircle2 className="w-4 h-4 text-green-500" />
-                          : <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-primary">Add</Button>
+                          : <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 text-xs px-2 text-primary"
+                              onClick={item.action}
+                              data-testid={`button-action-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                            >
+                              Add
+                            </Button>
                         }
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <Button className="w-full" variant="outline">Update Resume</Button>
+                <Button 
+                  className="w-full" 
+                  variant="outline"
+                  onClick={() => navigate("/student/resume")}
+                  data-testid="button-update-resume"
+                >
+                  Update Resume
+                </Button>
               </CardContent>
             </Card>
           </div>
