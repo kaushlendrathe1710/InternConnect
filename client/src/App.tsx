@@ -16,6 +16,9 @@ import StudentSettings from "@/pages/student/settings";
 import StudentInternships from "@/pages/student/internships";
 import EmployerDashboard from "@/pages/employer/dashboard";
 import PostInternship from "@/pages/employer/post-internship";
+import EmployerApplications from "@/pages/employer/applications";
+import EmployerMessages from "@/pages/employer/messages";
+import EmployerSettings from "@/pages/employer/settings";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AuthPage from "@/pages/auth/auth-page";
 import RoleSelection from "@/pages/auth/role-selection";
@@ -38,8 +41,10 @@ function Router() {
       
       {/* Employer Routes */}
       <Route path="/employer/dashboard" component={EmployerDashboard} />
-      <Route path="/employer/applications" component={EmployerDashboard} />
       <Route path="/employer/post" component={PostInternship} />
+      <Route path="/employer/applications" component={EmployerApplications} />
+      <Route path="/employer/messages" component={EmployerMessages} />
+      <Route path="/employer/settings" component={EmployerSettings} />
       
       {/* Admin Routes */}
       <Route path="/admin/dashboard" component={AdminDashboard} />
