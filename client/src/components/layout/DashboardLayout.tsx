@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth-context";
 import { 
   LayoutDashboard, 
   FileText, 
@@ -9,8 +10,11 @@ import {
   LogOut,
   PlusCircle,
   Users,
-  MessageSquare
+  MessageSquare,
+  Menu,
+  X
 } from "lucide-react";
+import { useState } from "react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -19,6 +23,8 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, role }: DashboardLayoutProps) {
   const [location] = useLocation();
+  const { user, logout } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const studentLinks = [
     { href: "/student/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -35,13 +41,30 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
   ];
 
   const links = role === "student" ? studentLinks : employerLinks;
+  const settingsHref = role === "student" ? "/student/settings" : "/employer/settings";
+
+  const userName = user?.name || user?.email?.split('@')[0] || (role === 'student' ? 'Student' : 'Employer');
+  const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Top Navigation */}
-      <header className="h-16 bg-white border-b flex items-center justify-between px-6 sticky top-0 z-30">
-        <Link href="/">
-          <a className="flex items-center space-x-2">
+      <header className="h-16 bg-white border-b flex items-center justify-between px-4 md:px-6 sticky top-0 z-30">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="md:hidden"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            data-testid="button-mobile-menu"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+          <Link href="/" className="flex items-center space-x-2">
              <div className="bg-primary rounded-md p-1">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -61,56 +84,87 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
               <span className="font-bold text-lg tracking-tight text-primary hidden md:block">
                 InternConnect
               </span>
-          </a>
-        </Link>
+          </Link>
+        </div>
         
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground hidden md:inline-block">
-            Welcome, {role === 'student' ? 'Rahul' : 'TechNova HR'}
+            Welcome, {userName}
           </span>
           <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-            {role === 'student' ? 'RS' : 'TN'}
+            {userInitials}
           </div>
         </div>
       </header>
 
       <div className="flex flex-1">
+        {/* Mobile Sidebar Overlay */}
+        {mobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
-        <aside className="w-64 bg-white border-r hidden md:flex flex-col">
+        <aside className={`
+          ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+          md:translate-x-0
+          fixed md:static
+          inset-y-0 left-0
+          w-64 bg-white border-r
+          flex flex-col
+          z-50 md:z-auto
+          transition-transform duration-200
+          mt-16 md:mt-0
+        `}>
           <div className="p-4 space-y-1 flex-1">
              {links.map((link) => (
-               <Link key={link.href} href={link.href}>
-                 <a className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+               <Link 
+                 key={link.href} 
+                 href={link.href}
+                 className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
                    location === link.href 
                      ? "bg-blue-50 text-primary" 
                      : "text-slate-600 hover:bg-slate-50 hover:text-foreground"
-                 }`}>
-                   <link.icon className={`w-4 h-4 ${location === link.href ? "text-primary" : "text-slate-400"}`} />
-                   {link.label}
-                 </a>
+                 }`}
+                 onClick={() => setMobileMenuOpen(false)}
+                 data-testid={`nav-${link.label.toLowerCase().replace(/\s+/g, '-')}`}
+               >
+                 <link.icon className={`w-4 h-4 ${location === link.href ? "text-primary" : "text-slate-400"}`} />
+                 {link.label}
                </Link>
              ))}
 
              <div className="pt-4 mt-4 border-t">
-               <Link href="/settings">
-                 <a className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-foreground transition-colors">
-                   <Settings className="w-4 h-4 text-slate-400" /> Settings
-                 </a>
+               <Link 
+                 href={settingsHref}
+                 className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                   location === settingsHref
+                     ? "bg-blue-50 text-primary" 
+                     : "text-slate-600 hover:bg-slate-50 hover:text-foreground"
+                 }`}
+                 onClick={() => setMobileMenuOpen(false)}
+                 data-testid="nav-settings"
+               >
+                 <Settings className={`w-4 h-4 ${location === settingsHref ? "text-primary" : "text-slate-400"}`} /> Settings
                </Link>
              </div>
           </div>
           
           <div className="p-4 border-t">
-            <Link href="/">
-              <a className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
-                <LogOut className="w-4 h-4" /> Logout
-              </a>
-            </Link>
+            <button 
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition-colors w-full"
+              data-testid="nav-logout"
+            >
+              <LogOut className="w-4 h-4" /> Logout
+            </button>
           </div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 overflow-auto h-[calc(100vh-64px)]">
+        <main className="flex-1 p-4 md:p-6 overflow-auto h-[calc(100vh-64px)]">
           <div className="max-w-5xl mx-auto">
             {children}
           </div>
