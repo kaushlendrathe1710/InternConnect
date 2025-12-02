@@ -4,11 +4,26 @@ import * as nodemailer from "nodemailer";
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: process.env.SMTP_PORT === "465", // true for 465, false for other ports
+  secure: process.env.SMTP_PORT === "465", // true for 465, false for 587
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  tls: {
+    rejectUnauthorized: false
+  }
+});
+
+// Verify transporter configuration on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ SMTP Configuration Error:", error.message);
+    console.log("📧 SMTP_HOST:", process.env.SMTP_HOST);
+    console.log("📧 SMTP_PORT:", process.env.SMTP_PORT);
+    console.log("📧 SMTP_USER:", process.env.SMTP_USER);
+  } else {
+    console.log("✅ SMTP server is ready to send emails");
+  }
 });
 
 // Generate a 6-digit OTP
@@ -47,8 +62,8 @@ export async function sendOTPEmail(email: string, otp: string): Promise<void> {
   try {
     await transporter.sendMail(mailOptions);
     console.log(`✅ OTP email sent to ${email}`);
-  } catch (error) {
-    console.error("❌ Error sending email:", error);
+  } catch (error: any) {
+    console.error("❌ Error sending email:", error.message);
     throw new Error("Failed to send OTP email");
   }
 }
