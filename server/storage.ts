@@ -330,14 +330,39 @@ export class DatabaseStorage implements IStorage {
   async deleteUser(id: number): Promise<boolean> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     
-    if (user?.email === SUPER_ADMIN_EMAIL) {
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    if (user.email === SUPER_ADMIN_EMAIL) {
       throw new Error("Cannot delete super admin account");
     }
 
-    if (user?.isSuperAdmin) {
+    if (user.isSuperAdmin) {
       throw new Error("Cannot delete super admin account");
     }
 
+    // Delete related records based on user role
+    if (user.role === "employer") {
+      // Get all internships by this employer
+      const employerInternships = await db.select().from(internships).where(eq(internships.employerId, id));
+      
+      // Delete all applications for these internships
+      for (const internship of employerInternships) {
+        await db.delete(applications).where(eq(applications.internshipId, internship.id));
+      }
+      
+      // Delete all internships by this employer
+      await db.delete(internships).where(eq(internships.employerId, id));
+    } else if (user.role === "student") {
+      // Delete all applications by this student
+      await db.delete(applications).where(eq(applications.studentId, id));
+    }
+    
+    // Delete any OTPs for this user
+    await db.delete(otps).where(eq(otps.email, user.email));
+
+    // Finally delete the user
     await db.delete(users).where(eq(users.id, id));
     return true;
   }
