@@ -12,7 +12,8 @@ import {
   Users,
   MessageSquare,
   Menu,
-  X
+  X,
+  Search
 } from "lucide-react";
 import { useState } from "react";
 
@@ -28,6 +29,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
 
   const studentLinks = [
     { href: "/student/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/student/internships", label: "Find Internships", icon: Search },
     { href: "/student/applications", label: "My Applications", icon: Briefcase },
     { href: "/student/resume", label: "Edit Resume", icon: FileText },
     { href: "/student/bookmarks", label: "Bookmarks", icon: Bookmark },

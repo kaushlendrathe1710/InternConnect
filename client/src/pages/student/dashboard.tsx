@@ -69,7 +69,7 @@ export default function StudentDashboard() {
           </div>
           <Button 
             className="shadow-sm"
-            onClick={() => navigate("/search")}
+            onClick={() => navigate("/student/internships")}
             data-testid="button-find-internships"
           >
             <Search className="w-4 h-4 mr-2" />
