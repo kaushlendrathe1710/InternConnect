@@ -667,6 +667,58 @@ export async function registerRoutes(
     }
   });
 
+  // ============= ADMIN MESSAGES MODERATION =============
+
+  // Get all conversations (admin only)
+  app.get("/api/admin/conversations", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const conversations = await storage.getAllConversations();
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ error: "Failed to fetch conversations" });
+    }
+  });
+
+  // Get conversation with messages (admin only)
+  app.get("/api/admin/conversations/:id", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      const data = await storage.getConversationWithMessages(conversationId);
+      if (!data) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+      res.status(500).json({ error: "Failed to fetch conversation" });
+    }
+  });
+
+  // Delete a message (admin only)
+  app.delete("/api/admin/messages/:id", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const messageId = parseInt(req.params.id);
+      await storage.deleteMessage(messageId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      res.status(500).json({ error: "Failed to delete message" });
+    }
+  });
+
+  // Delete a conversation (admin only)
+  app.delete("/api/admin/conversations/:id", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      await storage.deleteConversation(conversationId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      res.status(500).json({ error: "Failed to delete conversation" });
+    }
+  });
+
   // ============= WEBSOCKET SETUP =============
   
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
