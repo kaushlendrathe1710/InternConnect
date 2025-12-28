@@ -734,6 +734,453 @@ export async function registerRoutes(
     }
   });
 
+  // ============= JOB ROUTES =============
+
+  // Get all active jobs
+  app.get("/api/jobs", async (req: Request, res: Response) => {
+    try {
+      const allJobs = await storage.getJobs();
+      res.json(allJobs);
+    } catch (error) {
+      console.error("Error fetching jobs:", error);
+      res.status(500).json({ error: "Failed to fetch jobs" });
+    }
+  });
+
+  // Get job by ID
+  app.get("/api/jobs/:id", async (req: Request, res: Response) => {
+    try {
+      const jobId = parseInt(req.params.id);
+      if (isNaN(jobId)) {
+        return res.status(400).json({ error: "Invalid job ID" });
+      }
+      const job = await storage.getJobById(jobId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      res.json(job);
+    } catch (error) {
+      console.error("Error fetching job:", error);
+      res.status(500).json({ error: "Failed to fetch job" });
+    }
+  });
+
+  // Create job (employer only)
+  app.post("/api/jobs", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.sessionUser?.role !== "employer") {
+        return res.status(403).json({ error: "Only employers can post jobs" });
+      }
+      const jobData = { ...req.body, employerId: req.sessionUser.id };
+      const job = await storage.createJob(jobData);
+      res.status(201).json(job);
+    } catch (error) {
+      console.error("Error creating job:", error);
+      res.status(500).json({ error: "Failed to create job" });
+    }
+  });
+
+  // Get employer's jobs
+  app.get("/api/employer/jobs", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.sessionUser?.role !== "employer") {
+        return res.status(403).json({ error: "Only employers can access this" });
+      }
+      const jobs = await storage.getJobsByEmployer(req.sessionUser.id);
+      res.json(jobs);
+    } catch (error) {
+      console.error("Error fetching employer jobs:", error);
+      res.status(500).json({ error: "Failed to fetch jobs" });
+    }
+  });
+
+  // Update job status
+  app.patch("/api/jobs/:id/status", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const jobId = parseInt(req.params.id);
+      const { isActive } = req.body;
+      const job = await storage.getJobById(jobId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      if (job.employerId !== req.sessionUser?.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      const updated = await storage.updateJobStatus(jobId, isActive);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating job:", error);
+      res.status(500).json({ error: "Failed to update job" });
+    }
+  });
+
+  // ============= JOB APPLICATION ROUTES =============
+
+  // Apply for a job
+  app.post("/api/jobs/:id/apply", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.sessionUser?.role !== "student") {
+        return res.status(403).json({ error: "Only students can apply" });
+      }
+      const jobId = parseInt(req.params.id);
+      const application = await storage.createJobApplication({
+        studentId: req.sessionUser.id,
+        jobId,
+        coverLetter: req.body.coverLetter,
+      });
+      res.status(201).json(application);
+    } catch (error) {
+      console.error("Error applying for job:", error);
+      res.status(500).json({ error: "Failed to apply" });
+    }
+  });
+
+  // Get student's job applications
+  app.get("/api/student/job-applications", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.sessionUser?.role !== "student") {
+        return res.status(403).json({ error: "Only students can access this" });
+      }
+      const applications = await storage.getJobApplicationsByStudent(req.sessionUser.id);
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching job applications:", error);
+      res.status(500).json({ error: "Failed to fetch applications" });
+    }
+  });
+
+  // Get applications for a job (employer)
+  app.get("/api/jobs/:id/applications", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const jobId = parseInt(req.params.id);
+      const job = await storage.getJobById(jobId);
+      if (!job || job.employerId !== req.sessionUser?.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      const applications = await storage.getJobApplicationsByJob(jobId);
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching applications:", error);
+      res.status(500).json({ error: "Failed to fetch applications" });
+    }
+  });
+
+  // Update job application status
+  app.patch("/api/job-applications/:id/status", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const applicationId = parseInt(req.params.id);
+      const { status } = req.body;
+      const updated = await storage.updateJobApplicationStatus(applicationId, status);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating application:", error);
+      res.status(500).json({ error: "Failed to update" });
+    }
+  });
+
+  // ============= ASSIGNMENT ROUTES =============
+
+  // Create assignment
+  app.post("/api/assignments", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.sessionUser?.role !== "employer") {
+        return res.status(403).json({ error: "Only employers can create assignments" });
+      }
+      const assignment = await storage.createAssignment({
+        ...req.body,
+        employerId: req.sessionUser.id,
+      });
+      // Create notification for student
+      await storage.createNotification({
+        userId: req.body.studentId,
+        type: "assignment",
+        title: "New Assignment",
+        message: `You have received a new assignment: ${req.body.title}`,
+        link: `/student/assignments`,
+      });
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Error creating assignment:", error);
+      res.status(500).json({ error: "Failed to create assignment" });
+    }
+  });
+
+  // Get employer's assignments
+  app.get("/api/employer/assignments", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.sessionUser?.role !== "employer") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      const assignments = await storage.getAssignmentsByEmployer(req.sessionUser.id);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching assignments:", error);
+      res.status(500).json({ error: "Failed to fetch assignments" });
+    }
+  });
+
+  // Get student's assignments
+  app.get("/api/student/assignments", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.sessionUser?.role !== "student") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      const assignments = await storage.getAssignmentsByStudent(req.sessionUser.id);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching assignments:", error);
+      res.status(500).json({ error: "Failed to fetch assignments" });
+    }
+  });
+
+  // Submit assignment
+  app.post("/api/assignments/:id/submit", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const assignmentId = parseInt(req.params.id);
+      const assignment = await storage.getAssignment(assignmentId);
+      if (!assignment || assignment.studentId !== req.sessionUser?.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      const updated = await storage.submitAssignment(assignmentId, req.body.submissionText, req.body.submissionUrl);
+      // Notify employer
+      await storage.createNotification({
+        userId: assignment.employerId,
+        type: "assignment_submitted",
+        title: "Assignment Submitted",
+        message: `A candidate has submitted the assignment: ${assignment.title}`,
+        link: `/employer/assignments`,
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error submitting assignment:", error);
+      res.status(500).json({ error: "Failed to submit" });
+    }
+  });
+
+  // Review assignment (employer)
+  app.patch("/api/assignments/:id/review", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const assignmentId = parseInt(req.params.id);
+      const assignment = await storage.getAssignment(assignmentId);
+      if (!assignment || assignment.employerId !== req.sessionUser?.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      const updated = await storage.updateAssignmentStatus(assignmentId, req.body.status, req.body.feedback);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error reviewing assignment:", error);
+      res.status(500).json({ error: "Failed to review" });
+    }
+  });
+
+  // ============= APPLICANT NOTES ROUTES =============
+
+  // Create/update applicant note
+  app.post("/api/applications/:id/notes", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.sessionUser?.role !== "employer") {
+        return res.status(403).json({ error: "Only employers can add notes" });
+      }
+      const applicationId = parseInt(req.params.id);
+      const existingNote = await storage.getApplicantNote(applicationId, req.sessionUser.id);
+      if (existingNote) {
+        const updated = await storage.updateApplicantNote(existingNote.id, req.body.note, req.body.rating);
+        return res.json(updated);
+      }
+      const note = await storage.createApplicantNote({
+        applicationId,
+        employerId: req.sessionUser.id,
+        note: req.body.note,
+        rating: req.body.rating,
+      });
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Error saving note:", error);
+      res.status(500).json({ error: "Failed to save note" });
+    }
+  });
+
+  // Get applicant note
+  app.get("/api/applications/:id/notes", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.sessionUser?.role !== "employer") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      const applicationId = parseInt(req.params.id);
+      const note = await storage.getApplicantNote(applicationId, req.sessionUser.id);
+      res.json(note || null);
+    } catch (error) {
+      console.error("Error fetching note:", error);
+      res.status(500).json({ error: "Failed to fetch note" });
+    }
+  });
+
+  // ============= NOTIFICATION ROUTES =============
+
+  // Get user notifications
+  app.get("/api/notifications", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const notifications = await storage.getNotificationsByUser(req.sessionUser!.id);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  // Get unread count
+  app.get("/api/notifications/unread-count", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const count = await storage.getUnreadNotificationCount(req.sessionUser!.id);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ error: "Failed to fetch count" });
+    }
+  });
+
+  // Mark notification as read
+  app.patch("/api/notifications/:id/read", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      await storage.markNotificationRead(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking notification:", error);
+      res.status(500).json({ error: "Failed to mark as read" });
+    }
+  });
+
+  // Mark all notifications as read
+  app.patch("/api/notifications/read-all", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      await storage.markAllNotificationsRead(req.sessionUser!.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking notifications:", error);
+      res.status(500).json({ error: "Failed to mark as read" });
+    }
+  });
+
+  // ============= COMPANY PROFILE ROUTES =============
+
+  // Get company profile
+  app.get("/api/company-profiles/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const profile = await storage.getCompanyProfileById(id);
+      if (!profile) {
+        return res.status(404).json({ error: "Profile not found" });
+      }
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ error: "Failed to fetch profile" });
+    }
+  });
+
+  // Get own company profile (employer)
+  app.get("/api/employer/company-profile", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.sessionUser?.role !== "employer") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      const profile = await storage.getCompanyProfile(req.sessionUser.id);
+      res.json(profile || null);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ error: "Failed to fetch profile" });
+    }
+  });
+
+  // Create or update company profile
+  app.post("/api/employer/company-profile", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.sessionUser?.role !== "employer") {
+        return res.status(403).json({ error: "Only employers can manage profiles" });
+      }
+      const existing = await storage.getCompanyProfile(req.sessionUser.id);
+      if (existing) {
+        const updated = await storage.updateCompanyProfile(req.sessionUser.id, req.body);
+        return res.json(updated);
+      }
+      const profile = await storage.createCompanyProfile({
+        ...req.body,
+        employerId: req.sessionUser.id,
+      });
+      res.status(201).json(profile);
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      res.status(500).json({ error: "Failed to save profile" });
+    }
+  });
+
+  // ============= REVIEW ROUTES =============
+
+  // Create review
+  app.post("/api/reviews", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.sessionUser?.role !== "student") {
+        return res.status(403).json({ error: "Only students can write reviews" });
+      }
+      const review = await storage.createReview({
+        ...req.body,
+        studentId: req.sessionUser.id,
+      });
+      res.status(201).json(review);
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to create review" });
+    }
+  });
+
+  // Get reviews for company
+  app.get("/api/company-profiles/:id/reviews", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const reviews = await storage.getReviewsByCompany(id);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Get reviews for internship
+  app.get("/api/internships/:id/reviews", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const reviews = await storage.getReviewsByInternship(id);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Get reviews for job
+  app.get("/api/jobs/:id/reviews", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const reviews = await storage.getReviewsByJob(id);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Get average rating for company
+  app.get("/api/company-profiles/:id/rating", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const rating = await storage.getAverageRating(id);
+      res.json({ rating });
+    } catch (error) {
+      console.error("Error fetching rating:", error);
+      res.status(500).json({ error: "Failed to fetch rating" });
+    }
+  });
+
   // ============= WEBSOCKET SETUP =============
   
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
