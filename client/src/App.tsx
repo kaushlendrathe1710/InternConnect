@@ -25,6 +25,7 @@ import EmployerApplications from "@/pages/employer/applications";
 import EmployerAssignments from "@/pages/employer/assignments";
 import EmployerMessages from "@/pages/employer/messages";
 import EmployerSettings from "@/pages/employer/settings";
+import CompanyProfile from "@/pages/employer/company-profile";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
 import AdminInternships from "@/pages/admin/internships";
@@ -62,6 +63,7 @@ function Router() {
       <Route path="/employer/applications" component={EmployerApplications} />
       <Route path="/employer/assignments" component={EmployerAssignments} />
       <Route path="/employer/messages" component={EmployerMessages} />
+      <Route path="/employer/company-profile" component={CompanyProfile} />
       <Route path="/employer/settings" component={EmployerSettings} />
       
       {/* Admin Routes */}

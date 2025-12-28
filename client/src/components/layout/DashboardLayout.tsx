@@ -61,6 +61,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
     { href: "/employer/applications", label: "Applications", icon: Users },
     { href: "/employer/assignments", label: "Assignments", icon: ClipboardList },
     { href: "/employer/messages", label: "Messages", icon: MessageSquare },
+    { href: "/employer/company-profile", label: "Company Profile", icon: Briefcase },
   ];
 
   const adminLinks = [
