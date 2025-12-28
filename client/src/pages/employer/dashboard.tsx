@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, authFetch } from "@/lib/auth-context";
 import { 
   Users, 
   FileText, 
@@ -54,7 +54,7 @@ export default function EmployerDashboard() {
     queryKey: ["/api/internships/employer", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const res = await fetch(`/api/internships/employer/${user.id}`);
+      const res = await authFetch(`/api/internships/employer/${user.id}`);
       if (!res.ok) throw new Error("Failed to fetch internships");
       return res.json();
     },
