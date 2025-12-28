@@ -47,7 +47,25 @@ Preferred communication style: Simple, everyday language.
 
 **Design Pattern**: Single table inheritance for users (role discriminator), with foreign keys linking internships/jobs to employer users and applications to both students and internships/jobs.
 
-**Recent Additions (December 2025)**: Added jobs module, assignment system, notifications, company profiles, and reviews to achieve Internshala-level feature completeness.
+**Recent Additions (December 2025)**: Added jobs module, assignment system, notifications, company profiles, reviews, and internship approval workflow to achieve Internshala-level feature completeness.
+
+### Internship Approval Workflow
+**Problem**: Ensure quality control for internship postings before students see them
+**Solution**: Admin approval workflow with three states: pending, approved, rejected
+- When employers post internships, status defaults to "pending"
+- Admins review pending internships and can approve or reject with reason
+- Only approved internships are visible to students
+- Employers see their internships organized by status in dashboard tabs
+- Rejected internships show rejection reason to employers
+- Notifications sent to employers when internships are approved/rejected
+
+**Schema Fields**: `approvalStatus` (pending/approved/rejected), `rejectionReason`, `reviewedBy`, `reviewedAt`
+
+**API Endpoints**:
+- `POST /api/admin/internships/:id/approve` - Approve an internship
+- `POST /api/admin/internships/:id/reject` - Reject with optional reason
+- `GET /api/admin/internships/pending` - Get pending internships for review
+- `GET /api/internships/employer/:id?status=pending|approved|rejected` - Filter by status
 
 ### Frontend Architecture
 **Problem**: Multi-role interface with shared components and role-specific dashboards
