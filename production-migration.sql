@@ -172,6 +172,15 @@ CREATE TABLE IF NOT EXISTS reviews (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Session table for express-session
+CREATE TABLE IF NOT EXISTS "session" (
+  "sid" varchar NOT NULL COLLATE "default",
+  "sess" json NOT NULL,
+  "expire" timestamp(6) NOT NULL,
+  PRIMARY KEY ("sid")
+);
+CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+
 -- Create Super Admin if not exists
 INSERT INTO users (email, name, role, is_verified, is_super_admin, is_suspended)
 SELECT 'kaushlendra.k12@fms.edu', 'Super Admin', 'admin', TRUE, TRUE, FALSE

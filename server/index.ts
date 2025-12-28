@@ -41,6 +41,11 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Trust proxy for production environments (Railway, Heroku, etc.)
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex"),
@@ -55,7 +60,7 @@ app.use(
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     },
   }),
 );
