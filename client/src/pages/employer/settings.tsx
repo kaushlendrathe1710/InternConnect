@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, authFetch } from "@/lib/auth-context";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   Building2, 
   Bell, 
@@ -26,7 +33,8 @@ import {
   Trash2,
   AlertTriangle,
   Link as LinkIcon,
-  Loader2
+  Loader2,
+  Clock
 } from "lucide-react";
 
 interface CompanyProfile {
@@ -46,6 +54,7 @@ export default function EmployerSettings() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [companyName, setCompanyName] = useState("");
   const [industry, setIndustry] = useState("");
@@ -56,11 +65,45 @@ export default function EmployerSettings() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [website, setWebsite] = useState("");
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
   
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [newApplicationAlerts, setNewApplicationAlerts] = useState(true);
   const [weeklyReport, setWeeklyReport] = useState(true);
   const [marketingEmails, setMarketingEmails] = useState(false);
+  
+  const handleLogoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image under 2MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select a PNG or JPG image only.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+        toast({
+          title: "Logo uploaded",
+          description: "Your logo preview is ready. Click Save to apply changes.",
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const { data: companyProfile, isLoading } = useQuery<CompanyProfile | null>({
     queryKey: ["/api/employer/company-profile"],
@@ -180,11 +223,27 @@ export default function EmployerSettings() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center gap-6">
-                  <div className="w-24 h-24 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 border-2 border-dashed">
-                    <Upload className="w-8 h-8" />
+                  <div className="w-24 h-24 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 border-2 border-dashed overflow-hidden">
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Logo preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <Upload className="w-8 h-8" />
+                    )}
                   </div>
                   <div>
-                    <Button variant="outline" size="sm" data-testid="button-upload-logo">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleLogoUpload}
+                      accept="image/png,image/jpeg,image/jpg"
+                      className="hidden"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => fileInputRef.current?.click()}
+                      data-testid="button-upload-logo"
+                    >
                       Upload Logo
                     </Button>
                     <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 2MB</p>
@@ -425,7 +484,12 @@ export default function EmployerSettings() {
                   <Badge>Admin</Badge>
                 </div>
 
-                <Button variant="outline" className="w-full" data-testid="button-invite-member">
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => setShowInviteDialog(true)}
+                  data-testid="button-invite-member"
+                >
                   <Users className="w-4 h-4 mr-2" /> Invite Team Member
                 </Button>
               </CardContent>
@@ -471,6 +535,26 @@ export default function EmployerSettings() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-primary" />
+              Coming Soon
+            </DialogTitle>
+            <DialogDescription>
+              Team member invitations are coming soon! This feature will allow you to invite colleagues 
+              to help manage your company's internship postings and applications.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button onClick={() => setShowInviteDialog(false)}>
+              Got it
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

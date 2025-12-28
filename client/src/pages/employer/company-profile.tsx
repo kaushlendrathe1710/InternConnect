@@ -27,14 +27,29 @@ import { apiRequest } from "@/lib/queryClient";
 import { Building, Globe, MapPin, Users, Calendar, Loader2 } from "lucide-react";
 import type { CompanyProfile } from "@shared/schema";
 
+const currentYear = new Date().getFullYear();
+
 const formSchema = z.object({
-  companyName: z.string().min(2, "Company name is required"),
+  companyName: z.string()
+    .min(2, "Company name is required")
+    .regex(/^[a-zA-Z][a-zA-Z\s\-\.&']+$/, "Company name must start with a letter and contain only letters, spaces, and basic punctuation"),
   website: z.string().url().optional().or(z.literal("")),
   industry: z.string().optional(),
   size: z.string().optional(),
-  founded: z.string().optional(),
+  founded: z.string()
+    .optional()
+    .refine((val) => {
+      if (!val || val === "") return true;
+      const year = parseInt(val);
+      return !isNaN(year) && year >= 1800 && year <= currentYear && /^\d{4}$/.test(val);
+    }, `Founded year must be a 4-digit year between 1800 and ${currentYear}`),
   about: z.string().optional(),
-  location: z.string().optional(),
+  location: z.string()
+    .optional()
+    .refine((val) => {
+      if (!val || val === "") return true;
+      return /^[a-zA-Z][a-zA-Z\s\-,\.]+$/.test(val);
+    }, "Location must contain only letters, spaces, and basic punctuation"),
   socialLinks: z.string().optional(),
 });
 
