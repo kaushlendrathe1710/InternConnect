@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
+import { NotificationBell } from "./NotificationBell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,11 +24,12 @@ import {
   X,
   Search,
   User,
-  Bell,
   ChevronDown,
   Shield,
   ShieldCheck,
-  UserPlus
+  UserPlus,
+  ClipboardList,
+  Building
 } from "lucide-react";
 import { useState } from "react";
 
@@ -44,7 +46,9 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
   const studentLinks = [
     { href: "/student/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/student/internships", label: "Find Internships", icon: Search },
+    { href: "/student/jobs", label: "Find Jobs", icon: Building },
     { href: "/student/applications", label: "My Applications", icon: Briefcase },
+    { href: "/student/assignments", label: "Assignments", icon: ClipboardList },
     { href: "/student/messages", label: "Messages", icon: MessageSquare },
     { href: "/student/resume", label: "Edit Resume", icon: FileText },
     { href: "/student/bookmarks", label: "Bookmarks", icon: Bookmark },
@@ -53,7 +57,9 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
   const employerLinks = [
     { href: "/employer/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/employer/post", label: "Post Internship", icon: PlusCircle },
+    { href: "/employer/jobs", label: "Manage Jobs", icon: Building },
     { href: "/employer/applications", label: "Applications", icon: Users },
+    { href: "/employer/assignments", label: "Assignments", icon: ClipboardList },
     { href: "/employer/messages", label: "Messages", icon: MessageSquare },
   ];
 
@@ -125,10 +131,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
         </div>
         
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
-            <Bell className="h-5 w-5 text-slate-500" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </Button>
+          <NotificationBell />
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

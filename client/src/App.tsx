@@ -15,9 +15,14 @@ import StudentBookmarks from "@/pages/student/bookmarks";
 import StudentSettings from "@/pages/student/settings";
 import StudentInternships from "@/pages/student/internships";
 import StudentMessages from "@/pages/student/messages";
+import StudentJobs from "@/pages/student/jobs";
+import StudentAssignments from "@/pages/student/assignments";
 import EmployerDashboard from "@/pages/employer/dashboard";
 import PostInternship from "@/pages/employer/post-internship";
+import PostJob from "@/pages/employer/post-job";
+import EmployerJobs from "@/pages/employer/jobs";
 import EmployerApplications from "@/pages/employer/applications";
+import EmployerAssignments from "@/pages/employer/assignments";
 import EmployerMessages from "@/pages/employer/messages";
 import EmployerSettings from "@/pages/employer/settings";
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -45,12 +50,17 @@ function Router() {
       <Route path="/student/bookmarks" component={StudentBookmarks} />
       <Route path="/student/settings" component={StudentSettings} />
       <Route path="/student/internships" component={StudentInternships} />
+      <Route path="/student/jobs" component={StudentJobs} />
+      <Route path="/student/assignments" component={StudentAssignments} />
       <Route path="/student/messages" component={StudentMessages} />
       
       {/* Employer Routes */}
       <Route path="/employer/dashboard" component={EmployerDashboard} />
       <Route path="/employer/post" component={PostInternship} />
+      <Route path="/employer/post-job" component={PostJob} />
+      <Route path="/employer/jobs" component={EmployerJobs} />
       <Route path="/employer/applications" component={EmployerApplications} />
+      <Route path="/employer/assignments" component={EmployerAssignments} />
       <Route path="/employer/messages" component={EmployerMessages} />
       <Route path="/employer/settings" component={EmployerSettings} />
       
