@@ -5,6 +5,13 @@ import {
   applications,
   conversations,
   messages,
+  jobs,
+  jobApplications,
+  assignments,
+  applicantNotes,
+  notifications,
+  companyProfiles,
+  reviews,
   SUPER_ADMIN_EMAIL,
   type User, 
   type InsertUser,
@@ -17,10 +24,24 @@ import {
   type Conversation,
   type InsertConversation,
   type Message,
-  type InsertMessage
+  type InsertMessage,
+  type Job,
+  type InsertJob,
+  type JobApplication,
+  type InsertJobApplication,
+  type Assignment,
+  type InsertAssignment,
+  type ApplicantNote,
+  type InsertApplicantNote,
+  type Notification,
+  type InsertNotification,
+  type CompanyProfile,
+  type InsertCompanyProfile,
+  type Review,
+  type InsertReview
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, or, sql, ne, count } from "drizzle-orm";
+import { eq, and, desc, or, sql, ne, count, asc } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -73,6 +94,52 @@ export interface IStorage {
   getConversationWithMessages(conversationId: number): Promise<{ conversation: Conversation; messages: (Message & { sender: User | null })[]; employer: User | null; student: User | null } | null>;
   deleteMessage(messageId: number): Promise<boolean>;
   deleteConversation(conversationId: number): Promise<boolean>;
+
+  // Job methods
+  createJob(job: InsertJob): Promise<Job>;
+  getJobs(): Promise<Job[]>;
+  getJobById(id: number): Promise<Job | undefined>;
+  getJobsByEmployer(employerId: number): Promise<Job[]>;
+  updateJobStatus(id: number, isActive: boolean): Promise<Job | undefined>;
+
+  // Job Application methods
+  createJobApplication(application: InsertJobApplication): Promise<JobApplication>;
+  getJobApplicationsByStudent(studentId: number): Promise<JobApplication[]>;
+  getJobApplicationsByJob(jobId: number): Promise<JobApplication[]>;
+  updateJobApplicationStatus(id: number, status: string): Promise<JobApplication | undefined>;
+
+  // Assignment methods
+  createAssignment(assignment: InsertAssignment): Promise<Assignment>;
+  getAssignment(id: number): Promise<Assignment | undefined>;
+  getAssignmentsByEmployer(employerId: number): Promise<Assignment[]>;
+  getAssignmentsByStudent(studentId: number): Promise<Assignment[]>;
+  submitAssignment(id: number, submissionText: string, submissionUrl?: string): Promise<Assignment | undefined>;
+  updateAssignmentStatus(id: number, status: string, feedback?: string): Promise<Assignment | undefined>;
+
+  // Applicant Notes methods
+  createApplicantNote(note: InsertApplicantNote): Promise<ApplicantNote>;
+  getApplicantNote(applicationId: number, employerId: number): Promise<ApplicantNote | undefined>;
+  updateApplicantNote(id: number, note: string, rating?: number): Promise<ApplicantNote | undefined>;
+
+  // Notification methods
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getNotificationsByUser(userId: number): Promise<Notification[]>;
+  markNotificationRead(id: number): Promise<void>;
+  markAllNotificationsRead(userId: number): Promise<void>;
+  getUnreadNotificationCount(userId: number): Promise<number>;
+
+  // Company Profile methods
+  createCompanyProfile(profile: InsertCompanyProfile): Promise<CompanyProfile>;
+  getCompanyProfile(employerId: number): Promise<CompanyProfile | undefined>;
+  getCompanyProfileById(id: number): Promise<CompanyProfile | undefined>;
+  updateCompanyProfile(employerId: number, profile: Partial<InsertCompanyProfile>): Promise<CompanyProfile | undefined>;
+
+  // Review methods
+  createReview(review: InsertReview): Promise<Review>;
+  getReviewsByCompany(companyProfileId: number): Promise<Review[]>;
+  getReviewsByInternship(internshipId: number): Promise<Review[]>;
+  getReviewsByJob(jobId: number): Promise<Review[]>;
+  getAverageRating(companyProfileId: number): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -535,6 +602,187 @@ export class DatabaseStorage implements IStorage {
     // Then delete the conversation
     await db.delete(conversations).where(eq(conversations.id, conversationId));
     return true;
+  }
+
+  // Job methods
+  async createJob(insertJob: InsertJob): Promise<Job> {
+    const [job] = await db.insert(jobs).values(insertJob).returning();
+    return job;
+  }
+
+  async getJobs(): Promise<Job[]> {
+    return await db.select().from(jobs).where(eq(jobs.isActive, true)).orderBy(desc(jobs.createdAt));
+  }
+
+  async getJobById(id: number): Promise<Job | undefined> {
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, id));
+    return job || undefined;
+  }
+
+  async getJobsByEmployer(employerId: number): Promise<Job[]> {
+    return await db.select().from(jobs).where(eq(jobs.employerId, employerId)).orderBy(desc(jobs.createdAt));
+  }
+
+  async updateJobStatus(id: number, isActive: boolean): Promise<Job | undefined> {
+    const [job] = await db.update(jobs).set({ isActive }).where(eq(jobs.id, id)).returning();
+    return job || undefined;
+  }
+
+  // Job Application methods
+  async createJobApplication(insertApplication: InsertJobApplication): Promise<JobApplication> {
+    const [application] = await db.insert(jobApplications).values(insertApplication).returning();
+    return application;
+  }
+
+  async getJobApplicationsByStudent(studentId: number): Promise<JobApplication[]> {
+    return await db.select().from(jobApplications).where(eq(jobApplications.studentId, studentId)).orderBy(desc(jobApplications.appliedAt));
+  }
+
+  async getJobApplicationsByJob(jobId: number): Promise<JobApplication[]> {
+    return await db.select().from(jobApplications).where(eq(jobApplications.jobId, jobId)).orderBy(desc(jobApplications.appliedAt));
+  }
+
+  async updateJobApplicationStatus(id: number, status: string): Promise<JobApplication | undefined> {
+    const [application] = await db.update(jobApplications).set({ status }).where(eq(jobApplications.id, id)).returning();
+    return application || undefined;
+  }
+
+  // Assignment methods
+  async createAssignment(insertAssignment: InsertAssignment): Promise<Assignment> {
+    const [assignment] = await db.insert(assignments).values(insertAssignment).returning();
+    return assignment;
+  }
+
+  async getAssignment(id: number): Promise<Assignment | undefined> {
+    const [assignment] = await db.select().from(assignments).where(eq(assignments.id, id));
+    return assignment || undefined;
+  }
+
+  async getAssignmentsByEmployer(employerId: number): Promise<Assignment[]> {
+    return await db.select().from(assignments).where(eq(assignments.employerId, employerId)).orderBy(desc(assignments.createdAt));
+  }
+
+  async getAssignmentsByStudent(studentId: number): Promise<Assignment[]> {
+    return await db.select().from(assignments).where(eq(assignments.studentId, studentId)).orderBy(desc(assignments.createdAt));
+  }
+
+  async submitAssignment(id: number, submissionText: string, submissionUrl?: string): Promise<Assignment | undefined> {
+    const [assignment] = await db
+      .update(assignments)
+      .set({ 
+        submissionText, 
+        submissionUrl: submissionUrl || null, 
+        status: "Submitted", 
+        submittedAt: new Date() 
+      })
+      .where(eq(assignments.id, id))
+      .returning();
+    return assignment || undefined;
+  }
+
+  async updateAssignmentStatus(id: number, status: string, feedback?: string): Promise<Assignment | undefined> {
+    const [assignment] = await db
+      .update(assignments)
+      .set({ status, feedback: feedback || null })
+      .where(eq(assignments.id, id))
+      .returning();
+    return assignment || undefined;
+  }
+
+  // Applicant Notes methods
+  async createApplicantNote(insertNote: InsertApplicantNote): Promise<ApplicantNote> {
+    const [note] = await db.insert(applicantNotes).values(insertNote).returning();
+    return note;
+  }
+
+  async getApplicantNote(applicationId: number, employerId: number): Promise<ApplicantNote | undefined> {
+    const [note] = await db
+      .select()
+      .from(applicantNotes)
+      .where(and(eq(applicantNotes.applicationId, applicationId), eq(applicantNotes.employerId, employerId)));
+    return note || undefined;
+  }
+
+  async updateApplicantNote(id: number, note: string, rating?: number): Promise<ApplicantNote | undefined> {
+    const [updated] = await db
+      .update(applicantNotes)
+      .set({ note, rating: rating || null, updatedAt: new Date() })
+      .where(eq(applicantNotes.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  // Notification methods
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const [notification] = await db.insert(notifications).values(insertNotification).returning();
+    return notification;
+  }
+
+  async getNotificationsByUser(userId: number): Promise<Notification[]> {
+    return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
+  }
+
+  async markNotificationRead(id: number): Promise<void> {
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
+  }
+
+  async markAllNotificationsRead(userId: number): Promise<void> {
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, userId));
+  }
+
+  async getUnreadNotificationCount(userId: number): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+    return result?.count || 0;
+  }
+
+  // Company Profile methods
+  async createCompanyProfile(insertProfile: InsertCompanyProfile): Promise<CompanyProfile> {
+    const [profile] = await db.insert(companyProfiles).values(insertProfile).returning();
+    return profile;
+  }
+
+  async getCompanyProfile(employerId: number): Promise<CompanyProfile | undefined> {
+    const [profile] = await db.select().from(companyProfiles).where(eq(companyProfiles.employerId, employerId));
+    return profile || undefined;
+  }
+
+  async getCompanyProfileById(id: number): Promise<CompanyProfile | undefined> {
+    const [profile] = await db.select().from(companyProfiles).where(eq(companyProfiles.id, id));
+    return profile || undefined;
+  }
+
+  async updateCompanyProfile(employerId: number, profile: Partial<InsertCompanyProfile>): Promise<CompanyProfile | undefined> {
+    const [updated] = await db
+      .update(companyProfiles)
+      .set({ ...profile, updatedAt: new Date() })
+      .where(eq(companyProfiles.employerId, employerId))
+      .returning();
+    return updated || undefined;
+  }
+
+  // Review methods
+  async createReview(insertReview: InsertReview): Promise<Review> {
+    const [review] = await db.insert(reviews).values(insertReview).returning();
+    return review;
+  }
+
+  async getReviewsByCompany(companyProfileId: number): Promise<Review[]> {
+    return await db.select().from(reviews).where(eq(reviews.companyProfileId, companyProfileId)).orderBy(desc(reviews.createdAt));
+  }
+
+  async getReviewsByInternship(internshipId: number): Promise<Review[]> {
+    return await db.select().from(reviews).where(eq(reviews.internshipId, internshipId)).orderBy(desc(reviews.createdAt));
+  }
+
+  async getReviewsByJob(jobId: number): Promise<Review[]> {
+    return await db.select().from(reviews).where(eq(reviews.jobId, jobId)).orderBy(desc(reviews.createdAt));
+  }
+
+  async getAverageRating(companyProfileId: number): Promise<number> {
+    const reviewsList = await db.select().from(reviews).where(eq(reviews.companyProfileId, companyProfileId));
+    if (reviewsList.length === 0) return 0;
+    const total = reviewsList.reduce((sum, r) => sum + r.rating, 0);
+    return Math.round((total / reviewsList.length) * 10) / 10;
   }
 }
 
