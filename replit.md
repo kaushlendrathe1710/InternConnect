@@ -31,16 +31,23 @@ Preferred communication style: Simple, everyday language.
 **Rationale**: Passwordless authentication reduces friction for users and eliminates password management complexity. OTP expiration ensures security while development mode logging enables easy testing.
 
 ### Database Architecture
-**Problem**: Store users, internships, applications, and OTPs with proper relationships
-**Solution**: PostgreSQL with Drizzle ORM using four main tables:
+**Problem**: Store users, internships, jobs, applications, assignments, notifications, reviews and OTPs with proper relationships
+**Solution**: PostgreSQL with Drizzle ORM using 11 main tables:
 - `users`: Stores all user types (students, employers, admins) with role field
 - `otps`: Temporary storage for one-time passwords with expiration
-- `internships`: Job postings created by employers
+- `internships`: Internship postings created by employers
 - `applications`: Student applications to internships
+- `jobs`: Full-time job postings (separate from internships)
+- `job_applications`: Student applications to jobs
+- `assignments`: Tasks sent to candidates for evaluation
+- `applicant_notes`: Employer notes and ratings on applicants
+- `notifications`: In-app notifications with email triggers
+- `company_profiles`: Employer company information
+- `reviews`: Student reviews and ratings for internships, jobs, and companies
 
-**Design Pattern**: Single table inheritance for users (role discriminator), with foreign keys linking internships to employer users and applications to both students and internships.
+**Design Pattern**: Single table inheritance for users (role discriminator), with foreign keys linking internships/jobs to employer users and applications to both students and internships/jobs.
 
-**Alternatives Considered**: Separate tables for each user type would be more normalized but adds complexity for authentication and shared user properties.
+**Recent Additions (December 2025)**: Added jobs module, assignment system, notifications, company profiles, and reviews to achieve Internshala-level feature completeness.
 
 ### Frontend Architecture
 **Problem**: Multi-role interface with shared components and role-specific dashboards
@@ -65,9 +72,19 @@ Preferred communication style: Simple, everyday language.
 **Solution**: Express.js server with route handlers in single file
 - `/api/auth/send-otp` - Generate and email OTP
 - `/api/auth/verify-otp` - Validate OTP and return user session
-- Additional routes for internships, applications (structure present in schema)
+- `/api/internships` - CRUD for internship postings
+- `/api/jobs` - CRUD for job postings
+- `/api/applications` - Internship applications management
+- `/api/job-applications` - Job applications management
+- `/api/assignments` - Assignment creation, submission, and review
+- `/api/applicant-notes` - Employer notes and ratings
+- `/api/notifications` - In-app notification system
+- `/api/company-profiles` - Company profile management
+- `/api/reviews` - Review and rating system
 
-**Storage Layer**: Abstract storage interface (`IStorage`) with `DatabaseStorage` implementation enables testing with alternative storage backends if needed.
+**Storage Layer**: Abstract storage interface (`IStorage`) with `DatabaseStorage` implementation (~800 lines) providing CRUD methods for all 11 tables.
+
+**Authorization**: All protected routes use `authMiddleware` with role-based guards (employer/student/admin checks).
 
 **Error Handling**: Structured error responses with appropriate HTTP status codes.
 
