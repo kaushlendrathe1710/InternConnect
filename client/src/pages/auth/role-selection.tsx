@@ -16,16 +16,27 @@ import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 
 const countryCodes = [
-  { code: "+91", country: "India", digits: 10 },
-  { code: "+1", country: "USA/Canada", digits: 10 },
-  { code: "+44", country: "UK", digits: 10 },
-  { code: "+61", country: "Australia", digits: 9 },
-  { code: "+971", country: "UAE", digits: 9 },
-  { code: "+65", country: "Singapore", digits: 8 },
-  { code: "+60", country: "Malaysia", digits: 9 },
-  { code: "+49", country: "Germany", digits: 10 },
-  { code: "+33", country: "France", digits: 9 },
-  { code: "+81", country: "Japan", digits: 10 },
+  { code: "+91", country: "India" },
+  { code: "+1", country: "USA/Canada" },
+  { code: "+44", country: "UK" },
+  { code: "+61", country: "Australia" },
+  { code: "+971", country: "UAE" },
+  { code: "+65", country: "Singapore" },
+  { code: "+60", country: "Malaysia" },
+  { code: "+49", country: "Germany" },
+  { code: "+33", country: "France" },
+  { code: "+81", country: "Japan" },
+  { code: "+86", country: "China" },
+  { code: "+82", country: "South Korea" },
+  { code: "+7", country: "Russia" },
+  { code: "+55", country: "Brazil" },
+  { code: "+52", country: "Mexico" },
+  { code: "+27", country: "South Africa" },
+  { code: "+234", country: "Nigeria" },
+  { code: "+92", country: "Pakistan" },
+  { code: "+880", country: "Bangladesh" },
+  { code: "+94", country: "Sri Lanka" },
+  { code: "+977", country: "Nepal" },
 ];
 
 export default function RoleSelection() {
@@ -55,8 +66,10 @@ export default function RoleSelection() {
   };
 
   const getRequiredDigits = (): number => {
-    const country = countryCodes.find(c => c.code === countryCode);
-    return country?.digits || 10;
+    // Total digits should be 12 (country code digits + phone digits = 12)
+    // Country code without '+' sign
+    const codeDigits = countryCode.replace('+', '').length;
+    return 12 - codeDigits;
   };
 
   const isValidPhone = (phone: string): boolean => {

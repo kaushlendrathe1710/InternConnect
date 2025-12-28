@@ -213,11 +213,12 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Name and phone are required" });
       }
 
-      // Validate phone number format (country code + 8-10 digits)
+      // Validate phone number format (country code + phone = 12 digits total)
       const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
-      const phoneRegex = /^\+[0-9]{10,14}$/;
+      // Must start with + and have exactly 12 digits after removing +
+      const phoneRegex = /^\+[0-9]{12}$/;
       if (!phoneRegex.test(cleanPhone)) {
-        return res.status(400).json({ error: "Please enter a valid phone number with country code" });
+        return res.status(400).json({ error: "Phone number must be exactly 12 digits including country code" });
       }
 
       // Check if user already exists
