@@ -33,11 +33,26 @@ export default function RoleSelection() {
     setStep("details");
   };
 
+  const isValidPhone = (phone: string): boolean => {
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+    const phoneRegex = /^\+?[0-9]{10,15}$/;
+    return phoneRegex.test(cleanPhone);
+  };
+
   const handleRegister = async () => {
     if (!role || !email || !fullName || !phone) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isValidPhone(phone)) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Please enter a valid phone number (10-15 digits)",
         variant: "destructive",
       });
       return;
@@ -131,6 +146,7 @@ export default function RoleSelection() {
                   className="pl-9"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  maxLength={15}
                   required
                 />
               </div>

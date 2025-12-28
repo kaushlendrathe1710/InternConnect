@@ -213,6 +213,13 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Name and phone are required" });
       }
 
+      // Validate phone number format (10-15 digits, optional + prefix)
+      const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+      const phoneRegex = /^\+?[0-9]{10,15}$/;
+      if (!phoneRegex.test(cleanPhone)) {
+        return res.status(400).json({ error: "Please enter a valid phone number (10-15 digits)" });
+      }
+
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
