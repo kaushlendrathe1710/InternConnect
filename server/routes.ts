@@ -333,11 +333,12 @@ export async function registerRoutes(
     }
   });
 
-  // Get internships by employer
+  // Get internships by employer (with optional status filter)
   app.get("/api/internships/employer/:employerId", async (req: Request, res: Response) => {
     try {
       const employerId = parseInt(req.params.employerId);
-      const internships = await storage.getInternshipsByEmployer(employerId);
+      const status = req.query.status as string | undefined;
+      const internships = await storage.getInternshipsByEmployer(employerId, status);
       res.json(internships);
     } catch (error) {
       console.error("Error fetching employer internships:", error);
