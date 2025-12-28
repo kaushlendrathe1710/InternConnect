@@ -18,9 +18,23 @@ export default function AuthPage() {
   const [, setLocation] = useLocation();
   const { login } = useAuth();
 
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    return emailRegex.test(email);
+  };
+
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
+    
+    if (!isValidEmail(email)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address (e.g., name@example.com)",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsLoading(true);
     try {
