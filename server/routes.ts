@@ -656,6 +656,72 @@ export async function registerRoutes(
     }
   });
 
+  // Get internships by approval status (admin only)
+  app.get("/api/admin/internships/pending", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const internships = await storage.getInternshipsByApprovalStatus("pending");
+      res.json(internships);
+    } catch (error) {
+      console.error("Error fetching pending internships:", error);
+      res.status(500).json({ error: "Failed to fetch pending internships" });
+    }
+  });
+
+  // Approve internship (admin only)
+  app.post("/api/admin/internships/:id/approve", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const internshipId = parseInt(req.params.id);
+      const reviewedBy = req.sessionUser!.id;
+
+      const internship = await storage.reviewInternship(internshipId, "approved", reviewedBy);
+      if (!internship) {
+        return res.status(404).json({ error: "Internship not found" });
+      }
+
+      // Create notification for employer
+      await storage.createNotification({
+        userId: internship.employerId,
+        title: "Internship Approved",
+        message: `Your internship "${internship.title}" has been approved and is now visible to students.`,
+        type: "internship",
+        link: `/employer/dashboard`,
+      });
+
+      res.json(internship);
+    } catch (error) {
+      console.error("Error approving internship:", error);
+      res.status(500).json({ error: "Failed to approve internship" });
+    }
+  });
+
+  // Reject internship (admin only)
+  app.post("/api/admin/internships/:id/reject", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const internshipId = parseInt(req.params.id);
+      const reviewedBy = req.sessionUser!.id;
+      const { reason } = req.body;
+
+      const internship = await storage.reviewInternship(internshipId, "rejected", reviewedBy, reason);
+      if (!internship) {
+        return res.status(404).json({ error: "Internship not found" });
+      }
+
+      // Create notification for employer
+      await storage.createNotification({
+        userId: internship.employerId,
+        title: "Internship Rejected",
+        message: `Your internship "${internship.title}" has been rejected.${reason ? ` Reason: ${reason}` : ""}`,
+        type: "internship",
+        link: `/employer/dashboard`,
+      });
+
+      res.json(internship);
+    } catch (error) {
+      console.error("Error rejecting internship:", error);
+      res.status(500).json({ error: "Failed to reject internship" });
+    }
+  });
+
   // Get all applications (admin only)
   app.get("/api/admin/applications", authMiddleware as any, adminMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
     try {
