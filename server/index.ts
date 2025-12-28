@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import cors from "cors";
 import { Pool } from "@neondatabase/serverless";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -8,6 +9,12 @@ import { createServer } from "http";
 import crypto from "crypto";
 
 const app = express();
+
+// CORS configuration for production
+app.use(cors({
+  origin: true,
+  credentials: true,
+}));
 const httpServer = createServer(app);
 
 const PgSession = connectPgSimple(session);
