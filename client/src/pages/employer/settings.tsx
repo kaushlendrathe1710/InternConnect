@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, authFetch } from "@/lib/auth-context";
 import { 
   Building2, 
   Bell, 
@@ -24,23 +25,110 @@ import {
   LogOut,
   Trash2,
   AlertTriangle,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Loader2
 } from "lucide-react";
+
+interface CompanyProfile {
+  id: number;
+  userId: number;
+  companyName: string | null;
+  industry: string | null;
+  companySize: string | null;
+  foundedYear: string | null;
+  about: string | null;
+  website: string | null;
+  address: string | null;
+  logoUrl: string | null;
+}
 
 export default function EmployerSettings() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [companyName, setCompanyName] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [companySize, setCompanySize] = useState("");
+  const [foundedYear, setFoundedYear] = useState("");
+  const [about, setAbout] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [website, setWebsite] = useState("");
   
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [newApplicationAlerts, setNewApplicationAlerts] = useState(true);
   const [weeklyReport, setWeeklyReport] = useState(true);
   const [marketingEmails, setMarketingEmails] = useState(false);
 
+  const { data: companyProfile, isLoading } = useQuery<CompanyProfile | null>({
+    queryKey: ["/api/employer/company-profile"],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await authFetch(`/api/employer/company-profile`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch company profile");
+      const data = await res.json();
+      return data || null;
+    },
+    enabled: !!user?.id,
+  });
+
+  useEffect(() => {
+    if (user) {
+      setCompanyName(user.name || "");
+      setEmail(user.email || "");
+      setPhone(user.phone || "");
+    }
+    if (companyProfile) {
+      if (companyProfile.companyName) setCompanyName(companyProfile.companyName);
+      if (companyProfile.industry) setIndustry(companyProfile.industry);
+      if (companyProfile.companySize) setCompanySize(companyProfile.companySize);
+      if (companyProfile.foundedYear) setFoundedYear(companyProfile.foundedYear);
+      if (companyProfile.about) setAbout(companyProfile.about);
+      if (companyProfile.website) setWebsite(companyProfile.website);
+      if (companyProfile.address) setAddress(companyProfile.address);
+    }
+  }, [user, companyProfile]);
+
+  const saveProfileMutation = useMutation({
+    mutationFn: async () => {
+      const profileData = {
+        companyName: companyName || null,
+        industry: industry || null,
+        companySize: companySize || null,
+        foundedYear: foundedYear || null,
+        about: about || null,
+        website: website || null,
+        address: address || null,
+      };
+
+      const res = await authFetch("/api/employer/company-profile", {
+        method: "POST",
+        body: JSON.stringify(profileData),
+      });
+      if (!res.ok) throw new Error("Failed to save profile");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employer/company-profile"] });
+      toast({
+        title: "Settings saved",
+        description: "Your company profile has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSave = () => {
-    toast({
-      title: "Settings saved",
-      description: "Your preferences have been updated successfully.",
-    });
+    saveProfileMutation.mutate();
   };
 
   const handleLogout = () => {
@@ -50,6 +138,16 @@ export default function EmployerSettings() {
       description: "You have been logged out successfully.",
     });
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout role="employer">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout role="employer">
@@ -98,7 +196,9 @@ export default function EmployerSettings() {
                     <Label htmlFor="companyName">Company Name</Label>
                     <Input 
                       id="companyName" 
-                      defaultValue={user?.name || "TechNova Solutions"} 
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="Enter company name"
                       data-testid="input-company-name"
                     />
                   </div>
@@ -106,7 +206,9 @@ export default function EmployerSettings() {
                     <Label htmlFor="industry">Industry</Label>
                     <Input 
                       id="industry" 
-                      defaultValue="Information Technology" 
+                      value={industry}
+                      onChange={(e) => setIndustry(e.target.value)}
+                      placeholder="e.g., Information Technology"
                       data-testid="input-industry"
                     />
                   </div>
@@ -114,7 +216,9 @@ export default function EmployerSettings() {
                     <Label htmlFor="companySize">Company Size</Label>
                     <Input 
                       id="companySize" 
-                      defaultValue="51-200 employees" 
+                      value={companySize}
+                      onChange={(e) => setCompanySize(e.target.value)}
+                      placeholder="e.g., 51-200 employees"
                       data-testid="input-company-size"
                     />
                   </div>
@@ -122,7 +226,9 @@ export default function EmployerSettings() {
                     <Label htmlFor="founded">Founded Year</Label>
                     <Input 
                       id="founded" 
-                      defaultValue="2018" 
+                      value={foundedYear}
+                      onChange={(e) => setFoundedYear(e.target.value)}
+                      placeholder="e.g., 2018"
                       data-testid="input-founded"
                     />
                   </div>
@@ -134,7 +240,8 @@ export default function EmployerSettings() {
                     id="about" 
                     placeholder="Tell candidates about your company, culture, and mission..."
                     className="min-h-[120px]"
-                    defaultValue="TechNova Solutions is a leading technology company focused on building innovative software solutions. We believe in fostering talent and providing growth opportunities for young professionals."
+                    value={about}
+                    onChange={(e) => setAbout(e.target.value)}
                     data-testid="input-about"
                   />
                 </div>
@@ -154,7 +261,9 @@ export default function EmployerSettings() {
                         id="email" 
                         type="email" 
                         className="pl-9"
-                        defaultValue={user?.email || "hr@technova.com"} 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="contact@company.com"
                         data-testid="input-email"
                       />
                     </div>
@@ -166,7 +275,9 @@ export default function EmployerSettings() {
                       <Input 
                         id="phone" 
                         className="pl-9"
-                        defaultValue={user?.phone || "+91 9876543210"} 
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+91 9876543210"
                         data-testid="input-phone"
                       />
                     </div>
@@ -178,7 +289,9 @@ export default function EmployerSettings() {
                       <Input 
                         id="address" 
                         className="pl-9"
-                        defaultValue="123 Tech Park, Koramangala, Bangalore - 560034" 
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Enter your office address"
                         data-testid="input-address"
                       />
                     </div>
@@ -190,7 +303,9 @@ export default function EmployerSettings() {
                       <Input 
                         id="website" 
                         className="pl-9"
-                        defaultValue="https://technova.com" 
+                        value={website}
+                        onChange={(e) => setWebsite(e.target.value)}
+                        placeholder="https://yourcompany.com"
                         data-testid="input-website"
                       />
                     </div>
@@ -198,7 +313,20 @@ export default function EmployerSettings() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button onClick={handleSave} data-testid="button-save-company">Save Changes</Button>
+                  <Button 
+                    onClick={handleSave} 
+                    disabled={saveProfileMutation.isPending}
+                    data-testid="button-save-company"
+                  >
+                    {saveProfileMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -287,11 +415,11 @@ export default function EmployerSettings() {
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                      {user?.name?.charAt(0) || 'A'}
+                      {user?.name?.charAt(0) || 'U'}
                     </div>
                     <div>
-                      <p className="font-medium">{user?.name || 'Admin User'}</p>
-                      <p className="text-sm text-muted-foreground">{user?.email}</p>
+                      <p className="font-medium">{user?.name || 'User'}</p>
+                      <p className="text-sm text-muted-foreground">{user?.email || ''}</p>
                     </div>
                   </div>
                   <Badge>Admin</Badge>
