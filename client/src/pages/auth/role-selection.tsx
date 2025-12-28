@@ -4,15 +4,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { GraduationCap, Building2, CheckCircle, Loader2, User, Phone } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
+
+const countryCodes = [
+  { code: "+91", country: "India", digits: 10 },
+  { code: "+1", country: "USA/Canada", digits: 10 },
+  { code: "+44", country: "UK", digits: 10 },
+  { code: "+61", country: "Australia", digits: 9 },
+  { code: "+971", country: "UAE", digits: 9 },
+  { code: "+65", country: "Singapore", digits: 8 },
+  { code: "+60", country: "Malaysia", digits: 9 },
+  { code: "+49", country: "Germany", digits: 10 },
+  { code: "+33", country: "France", digits: 9 },
+  { code: "+81", country: "Japan", digits: 10 },
+];
 
 export default function RoleSelection() {
   const [step, setStep] = useState<"role" | "details">("role");
   const [role, setRole] = useState<"student" | "employer" | null>(null);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  const [countryCode, setCountryCode] = useState("+91");
   const [phone, setPhone] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -33,9 +54,15 @@ export default function RoleSelection() {
     setStep("details");
   };
 
+  const getRequiredDigits = (): number => {
+    const country = countryCodes.find(c => c.code === countryCode);
+    return country?.digits || 10;
+  };
+
   const isValidPhone = (phone: string): boolean => {
     const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
-    const phoneRegex = /^\+?[0-9]{10,15}$/;
+    const requiredDigits = getRequiredDigits();
+    const phoneRegex = new RegExp(`^[0-9]{${requiredDigits}}$`);
     return phoneRegex.test(cleanPhone);
   };
 
@@ -49,14 +76,17 @@ export default function RoleSelection() {
       return;
     }
 
+    const requiredDigits = getRequiredDigits();
     if (!isValidPhone(phone)) {
       toast({
         title: "Invalid Phone Number",
-        description: "Please enter a valid phone number (10-15 digits)",
+        description: `Please enter exactly ${requiredDigits} digits for your mobile number`,
         variant: "destructive",
       });
       return;
     }
+    
+    const fullPhone = `${countryCode}${phone}`;
     
     setIsLoading(true);
     try {
@@ -67,7 +97,7 @@ export default function RoleSelection() {
           email, 
           role,
           name: fullName,
-          phone
+          phone: fullPhone
         }),
       });
 
@@ -137,19 +167,40 @@ export default function RoleSelection() {
 
             <div className="space-y-2">
               <Label htmlFor="phone">Mobile Number</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  id="phone"
-                  type="tel" 
-                  placeholder="+91 9876543210"
-                  className="pl-9"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  maxLength={15}
-                  required
-                />
+              <div className="flex gap-2">
+                <Select value={countryCode} onValueChange={setCountryCode}>
+                  <SelectTrigger className="w-[140px]" data-testid="select-country-code">
+                    <SelectValue placeholder="Code" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countryCodes.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.code} {c.country}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="relative flex-1">
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    id="phone"
+                    type="tel" 
+                    placeholder={`${getRequiredDigits()} digits`}
+                    className="pl-9"
+                    value={phone}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      setPhone(value);
+                    }}
+                    maxLength={getRequiredDigits()}
+                    required
+                    data-testid="input-phone"
+                  />
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Enter {getRequiredDigits()} digit mobile number
+              </p>
             </div>
 
             <div className="pt-4 space-y-3">
