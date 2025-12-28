@@ -259,6 +259,33 @@ export async function registerRoutes(
   });
 
   // Get current user from session
+  // Get user by ID (for applications)
+  app.get("/api/users/:id", authMiddleware as any, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Invalid user ID" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Return limited user info for privacy
+      res.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      });
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ error: "Failed to fetch user" });
+    }
+  });
+
   app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {
       if (!req.session || !req.session.userId) {
