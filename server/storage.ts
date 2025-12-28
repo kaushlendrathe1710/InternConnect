@@ -56,9 +56,12 @@ export interface IStorage {
   
   // Internship methods
   createInternship(internship: InsertInternship): Promise<Internship>;
-  getInternships(): Promise<Internship[]>;
+  getInternships(): Promise<Internship[]>; // For students - only approved
+  getApprovedInternships(): Promise<Internship[]>; // Only approved and active
   getInternshipById(id: number): Promise<Internship | undefined>;
-  getInternshipsByEmployer(employerId: number): Promise<Internship[]>;
+  getInternshipsByEmployer(employerId: number, approvalStatus?: string): Promise<Internship[]>;
+  getInternshipsByApprovalStatus(status: string): Promise<Internship[]>;
+  reviewInternship(id: number, approvalStatus: string, reviewedBy: number, rejectionReason?: string): Promise<Internship | undefined>;
   
   // Application methods
   createApplication(application: InsertApplication): Promise<Application>;
@@ -204,7 +207,21 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(internships)
-      .where(eq(internships.isActive, true))
+      .where(and(
+        eq(internships.isActive, true),
+        eq(internships.approvalStatus, "approved")
+      ))
+      .orderBy(desc(internships.createdAt));
+  }
+
+  async getApprovedInternships(): Promise<Internship[]> {
+    return await db
+      .select()
+      .from(internships)
+      .where(and(
+        eq(internships.isActive, true),
+        eq(internships.approvalStatus, "approved")
+      ))
       .orderBy(desc(internships.createdAt));
   }
 
@@ -216,12 +233,50 @@ export class DatabaseStorage implements IStorage {
     return internship || undefined;
   }
 
-  async getInternshipsByEmployer(employerId: number): Promise<Internship[]> {
+  async getInternshipsByEmployer(employerId: number, approvalStatus?: string): Promise<Internship[]> {
+    if (approvalStatus) {
+      return await db
+        .select()
+        .from(internships)
+        .where(and(
+          eq(internships.employerId, employerId),
+          eq(internships.approvalStatus, approvalStatus)
+        ))
+        .orderBy(desc(internships.createdAt));
+    }
     return await db
       .select()
       .from(internships)
       .where(eq(internships.employerId, employerId))
       .orderBy(desc(internships.createdAt));
+  }
+
+  async getInternshipsByApprovalStatus(status: string): Promise<Internship[]> {
+    return await db
+      .select()
+      .from(internships)
+      .where(eq(internships.approvalStatus, status))
+      .orderBy(desc(internships.createdAt));
+  }
+
+  async reviewInternship(id: number, approvalStatus: string, reviewedBy: number, rejectionReason?: string): Promise<Internship | undefined> {
+    const updateData: any = {
+      approvalStatus,
+      reviewedBy,
+      reviewedAt: new Date(),
+    };
+    if (rejectionReason) {
+      updateData.rejectionReason = rejectionReason;
+    }
+    if (approvalStatus === "rejected") {
+      updateData.isActive = false;
+    }
+    const [internship] = await db
+      .update(internships)
+      .set(updateData)
+      .where(eq(internships.id, id))
+      .returning();
+    return internship || undefined;
   }
 
   // Application methods

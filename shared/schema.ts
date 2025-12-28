@@ -58,6 +58,10 @@ export const internships = pgTable("internships", {
   skills: text("skills").notNull(), // comma-separated
   perks: text("perks"),
   isActive: boolean("is_active").default(true),
+  approvalStatus: text("approval_status").notNull().default("pending"), // "pending" | "approved" | "rejected"
+  rejectionReason: text("rejection_reason"),
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
