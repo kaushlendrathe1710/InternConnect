@@ -46,9 +46,16 @@ if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
 
+// Generate a consistent session secret for development if not provided
+const sessionSecret = process.env.SESSION_SECRET || (
+  process.env.NODE_ENV === "production" 
+    ? (() => { throw new Error("SESSION_SECRET must be set in production"); })()
+    : "dev-secret-change-in-production"
+);
+
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex"),
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: new PgSession({
@@ -60,7 +67,7 @@ app.use(
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      sameSite: "lax",
     },
   }),
 );
